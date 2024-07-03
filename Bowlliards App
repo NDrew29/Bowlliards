@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bowlliards Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        #container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+        }
+        .screen {
+            display: none;
+        }
+        .screen.active {
+            display: block;
+        }
+        button {
+            font-size: 20px;
+            padding: 10px 20px;
+            margin-top: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        #scoresheet {
+            margin: 20px 0;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        #scoresheet th, #scoresheet td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: center;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+        }
+        .prominent {
+            font-size: 1.5em;
+        }
+        #totalTime {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="totalTime">Total Time: <span>00:00</span></div>
+    <div id="container">
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="screen active">
+            <h1>Welcome to Bowlliards Tracker</h1>
+            <button onclick="showScreen('gameSetupScreen')">Start Game</button>
+        </div>
+
+        <!-- Game Setup Screen -->
+        <div id="gameSetupScreen" class="screen">
+            <h2>Game Setup</h2>
+            <label for="gameType">Game Type:</label>
+            <select id="gameType">
+                <option value="5">Five Frames</option>
+                <option value="10">Ten Frames</option>
+            </select>
+            <button onclick="startGame()">Start</button>
+        </div>
+
+        <!-- Main Game Screen -->
+        <div id="mainGameScreen" class="screen">
+            <h2>Main Game</h2>
+            <div id="clocks">
+                <p>Game Clock: <span id="gameClock">00:00</span></p>
+                <p class="prominent">Frame Clock: <span id="frameClock">00:00</span></p>
+            </div>
+            <div class="prominent">
+                <p>Current Frame: <span id="currentFrame">1</span></p>
+                <p>Ball: <span id="currentBall">1</span></p>
+            </div>
+            <table id="scoresheet">
+                <tr>
+                    <th>Frame</th>
+                    <th>Break Balls</th>
+                    <th>Ball 1</th>
+                    <th>Ball 2</th>
+                    <th>Frame Total</th>
+                    <th>Total</th>
+                </tr>
+                <tbody id="scoreRows">
+                    <!-- Score rows will be added here dynamically -->
+                </tbody>
+            </table>
+            <button onclick="addScore()">+</button>
+            <button onclick="nextBall()">Next Ball</button>
+            <button onclick="undoScore()">Undo</button>
+            <button onclick="pauseGame()">Pause</button>
+            <button onclick="exportResults()">Export Results</button>
+        </div>
+    </div>
+
+    <div id="pauseScreen" class="screen hidden">
+        <h2>Game Paused</h2>
+        <p>Paused Time: <span id="pausedTime">00:00</span></p>
+        <button onclick="resumeGame()">Resume</button>
+    </div>
+
+    <div id="printContainer" class="screen hidden"></div>
+
+    <script>
+        let currentFrame = 1;
+        let currentBall = 1;
+        let frameClock = 0;
+        let gameClock = 0;
+        let totalTime = 0;
+        let gameType = 5;
+        let gameInterval;
+        let totalInterval;
+        let pauseInterval;
+        let pausedTime = 0;
+        let scores = [];
+        let frameScores = [];
+        let undoStack = [];
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+                screen.classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function startGame() {
+            gameType = parseInt(document.getElementById('gameType').value);
+            currentFrame = 1;
+            currentBall = 1;
+            frameClock = 0;
+            gameClock = 0;
+            totalTime = 0;
+            scores = Array.from({ length: gameType }, () => [0, 0, 0]);
+            frameScores = Array.from({ length: gameType }, () => 0);
+            undoStack = [];
+            document.getElementById('currentFrame').innerText = currentFrame;
+            document.getElementById('currentBall').innerText = currentBall;
+            document.getElementById('frameClock').innerText = formatTime(frameClock);
+            document.getElementById('gameClock').innerText = formatTime(gameClock);
+            document.getElementById('totalTime').innerText = `Total Time: ${formatTime(totalTime)}`;
+            setupScoresheet();
+            startClocks();
+            showScreen('mainGameScreen');
+        }
+
+        function setupScoresheet() {
+            const scoreRows = document.getElementById('scoreRows');
+            scoreRows.innerHTML = '';
+            for (let i = 1; i <= gameType; i++) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${i}</td>
+                    <td><input type="number" id="breakBalls-${i}" value="0" min="0"></td>
+                    <td id="ball1-${i}">0</td>
+                    <td id="ball2-${i}">0</td>
+                    <td id="frameTotal-${i}">0</td>
+                    <td id="score${i}">0</td>`;
+                scoreRows.appendChild(row);
+            }
+        }
+
+        function startClocks() {
+            gameInterval = setInterval(() => {
+                frameClock++;
+                gameClock++;
+                document.getElementById('frameClock').innerText = formatTime(frameClock);
+                document.getElementById('gameClock').innerText = formatTime(gameClock);
+            }, 1000);
+            totalInterval = setInterval(() => {
+                totalTime++;
+                document.getElementById('totalTime').innerText = `Total Time: ${formatTime(totalTime)}`;
+            }, 1000);
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function addScore() {
+            undoStack.push({
+                frame: currentFrame,
+                ball: currentBall,
+                scores: JSON.parse(JSON.stringify(scores)),
+                frameScores: JSON.parse(JSON.stringify(frameScores))
+            });
+
+            let currentScore = scores[currentFrame - 1][currentBall - 1];
+            if (currentBall === 1 && currentScore < 10) {
+                currentScore++;
+            } else if (currentBall === 2 && (scores[currentFrame - 1][0] + currentScore) < 10) {
+                currentScore++;
+            }
+            scores[currentFrame - 1][currentBall - 1] = currentScore;
+
+            document.getElementById(`ball${currentBall}-${currentFrame}`).innerText = currentScore;
+        }
+
+        function nextBall() {
+            if (currentBall === 1) {
+                if (scores[currentFrame - 1][0] === 10) {
+                    document.getElementById(`ball2-${currentFrame}`).innerText = 'X';
+                    nextFrame();
+                } else {
+                    currentBall = 2;
+                    document.getElementById('currentBall').innerText = currentBall;
+                }
+            } else {
+                if ((scores[currentFrame - 1][0] + scores[currentFrame - 1][1]) === 10) {
+                    document.getElementById(`ball2-${currentFrame}`).innerText = '/';
+                }
+                calculateFrameScore();
+                nextFrame();
+            }
+        }
+
+        function calculateFrameScore() {
+            for (let i = 0; i < gameType; i++) {
+                let frameScore = scores[i][0] + scores[i][1];
+                if (scores[i][0] === 10) { // Strike
+                    frameScore += (scores[i + 1]?.[0] || 0) + (scores[i + 1]?.[1] || scores[i + 2]?.[0] || 0);
+                } else if ((scores[i][0] + scores[i][1]) === 10) { // Spare
+                    frameScore += (scores[i + 1]?.[0] || 0);
+                }
+                frameScores[i] = frameScore;
+                const totalScore = frameScores.slice(0, i + 1).reduce((acc, curr) => acc + curr, 0);
+                document.getElementById(`frameTotal-${i + 1}`).innerText = frameScore;
+                document.getElementById(`score${i + 1}`).innerText = totalScore;
+            }
+        }
+
+        function nextFrame() {
+            if (currentFrame === gameType) {
+                endGame();
+            } else {
+                currentFrame++;
+                currentBall = 1;
+                document.getElementById('currentFrame').innerText = currentFrame;
+                document.getElementById('currentBall').innerText = currentBall;
+                frameClock = 0;
+                document.getElementById('frameClock').innerText = formatTime(frameClock);
+            }
+        }
+
+        function endGame() {
+            clearInterval(gameInterval);
+            clearInterval(totalInterval);
+            alert(`Game Over! Total Score: ${frameScores.reduce((acc, curr) => acc + curr, 0)}`);
+            if (confirm('Do you want to export the results?')) {
+                exportResults();
+            }
+            if (confirm('Do you want to start again?')) {
+                printScoresheet();
+                startGame();
+            } else {
+                showScreen('welcomeScreen');
+            }
+        }
+
+        function pauseGame() {
+            clearInterval(gameInterval);
+            clearInterval(totalInterval);
+            pausedTime = 0;
+            pauseInterval = setInterval(() => {
+                pausedTime++;
+                document.getElementById('pausedTime').innerText = formatTime(pausedTime);
+            }, 1000);
+            showScreen('pauseScreen');
+        }
+
+        function resumeGame() {
+            clearInterval(pauseInterval);
+            startClocks();
+            showScreen('mainGameScreen');
+        }
+
+        function undoScore() {
+            if (undoStack.length === 0) return;
+            const lastAction = undoStack.pop();
+            currentFrame = lastAction.frame;
+            currentBall = lastAction.ball;
+            scores = lastAction.scores;
+            frameScores = lastAction.frameScores;
+            for (let i = 1; i <= gameType; i++) {
+                document.getElementById(`ball1-${i}`).innerText = scores[i - 1][0] || 0;
+                document.getElementById(`ball2-${i}`).innerText = scores[i - 1][1] || 0;
+                document.getElementById(`frameTotal-${i}`).innerText = frameScores[i - 1];
+                const totalScore = frameScores.slice(0, i).reduce((acc, curr) => acc + curr, 0);
+                document.getElementById(`score${i}`).innerText = totalScore;
+            }
+            document.getElementById('currentFrame').innerText = currentFrame;
+            document.getElementById('currentBall').innerText = currentBall;
+        }
+
+        function exportResults() {
+            let result = 'Bowlliards Game Results\n';
+            result += 'Frame\tBreak Balls\tBall 1\tBall 2\tFrame Total\tTotal\n';
+            frameScores.forEach((frame, index) => {
+                result += `${index + 1}\t${document.getElementById(`breakBalls-${index + 1}`).value}\t${scores[index][0]}\t${scores[index][1]}\t${frame}\t${frameScores.slice(0, index + 1).reduce((acc, curr) => acc + curr, 0)}\n`;
+            });
+            result += `Total Score: ${frameScores.reduce((acc, curr) => acc + curr, 0)}\n\n`;
+            result += 'Detailed Scores\n';
+            scores.forEach((frame, index) => {
+                result += `Frame ${index + 1}: ${frame.join(', ')}\n`;
+            });
+
+            const blob = new Blob([result], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bowlliards_results.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function printScoresheet() {
+            const scoreRows = document.getElementById('scoreRows').innerHTML;
+            const printContainer = document.getElementById('printContainer');
+            const printEntry = document.createElement('div');
+            printEntry.innerHTML = `<table id="scoresheet"><tr><th>Frame</th><th>Break Balls</th><th>Ball 1</th><th>Ball 2</th><th>Frame Total</th><th>Total</th></tr>${scoreRows}</table>`;
+            printContainer.appendChild(printEntry);
+            printContainer.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
