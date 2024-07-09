@@ -20,6 +20,7 @@ struct ContentView: View {
     @State private var player1Games: Int = 0
     @State private var player2Games: Int = 0
     @State private var currentGame: Int = 1
+    @State private var serveCounter: Int = 0
 
     var body: some View {
         VStack {
@@ -225,6 +226,7 @@ struct ContentView: View {
         gameClock = 0
         player1Score = 0
         player2Score = 0
+        serveCounter = 0
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             gameClock += 1
@@ -262,7 +264,8 @@ struct ContentView: View {
     func incrementScore(for playerScore: inout Int) {
         scoreHistory.append((player1Score, player2Score, currentServer))
         playerScore += 1
-        if (player1Score + player2Score) % 4 == 0 {
+        serveCounter += 1
+        if serveCounter % 2 == 0 {
             switchServer()
         }
         checkForGameWin()
@@ -331,6 +334,7 @@ struct ContentView: View {
             player1Score = lastState.0
             player2Score = lastState.1
             currentServer = lastState.2
+            serveCounter = (player1Score + player2Score) % 4
         }
     }
 
