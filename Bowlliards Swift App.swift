@@ -14,10 +14,9 @@ struct ContentView: View {
     @State private var timer: Timer?
     @State private var pausedTime = 0
     @State private var isPaused = false
-    @State private var breakBalls = [Int](repeating: 0, count: 10)
     @State private var showEndGameAlert = false
     @State private var showSetupScreen = true
-    
+
     var body: some View {
         VStack {
             if showSetupScreen {
@@ -36,20 +35,20 @@ struct ContentView: View {
             )
         }
     }
-    
+
     var setupView: some View {
         VStack {
             Text("Bowlliards Tracker")
                 .font(.largeTitle)
                 .padding()
-            
+
             Picker("Game Type", selection: $gameType) {
                 Text("5 Frames").tag(5)
                 Text("10 Frames").tag(10)
             }
             .pickerStyle(SegmentedPickerStyle())
             .padding()
-            
+
             Button(action: {
                 self.startGame()
                 self.showSetupScreen = false
@@ -63,13 +62,13 @@ struct ContentView: View {
             }
         }
     }
-    
+
     var gameView: some View {
         VStack {
             Text("Bowlliards Tracker")
                 .font(.largeTitle)
                 .padding()
-            
+
             HStack {
                 VStack(alignment: .leading) {
                     Text("Game Clock: \(formatTime(seconds: gameClock))")
@@ -84,49 +83,46 @@ struct ContentView: View {
                 }
             }
             .padding()
-            
+
             HStack {
                 Button(action: addScore) {
                     Text("+1 Point")
                 }
                 .padding()
-                
+
                 Button(action: recordStrike) {
                     Text("Strike (X)")
                 }
                 .padding()
-                
+
                 Button(action: recordSpare) {
                     Text("Spare (/)")
                 }
                 .padding()
-                
+
                 Button(action: nextBall) {
                     Text("Next Ball")
                 }
                 .padding()
-                
+
                 Button(action: undoScore) {
                     Text("Undo")
                 }
                 .padding()
-                
+
                 Button(action: pauseGame) {
                     Text(isPaused ? "Resume" : "Pause")
                 }
                 .padding()
-                
+
                 Button(action: { self.showSetupScreen = true }) {
                     Text("End Game")
                 }
                 .padding()
             }
-            
+
             HStack {
                 Text("Frame")
-                    .bold()
-                Spacer()
-                Text("Balls on Break")
                     .bold()
                 Spacer()
                 Text("1st Ball")
@@ -139,16 +135,12 @@ struct ContentView: View {
                     .bold()
             }
             .padding(.horizontal)
-            
+
             List {
                 ForEach(0..<gameType, id: \.self) { frame in
                     HStack {
                         Text("Frame \(frame + 1)")
                             .bold()
-                        TextField("Break Balls", value: $breakBalls[frame], formatter: NumberFormatter())
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .frame(width: 50)
-                            .keyboardType(.numberPad)
                         Spacer()
                         Text(formatScore(scores[frame][0]))
                             .bold()
@@ -164,11 +156,11 @@ struct ContentView: View {
                     }
                 }
             }
-            
+
             Spacer()
         }
     }
-    
+
     func startGame() {
         currentFrame = 1
         currentBall = 1
@@ -178,10 +170,9 @@ struct ContentView: View {
         scores = [[Int]](repeating: [0, 0], count: gameType)
         frameScores = [Int](repeating: 0, count: gameType)
         undoStack = []
-        breakBalls = [Int](repeating: 0, count: gameType)
         startClocks()
     }
-    
+
     func startClocks() {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
@@ -192,16 +183,16 @@ struct ContentView: View {
             }
         }
     }
-    
+
     func formatTime(seconds: Int) -> String {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return String(format: "%02d:%02d", minutes, remainingSeconds)
     }
-    
+
     func addScore() {
         undoStack.append((currentFrame, currentBall, scores, frameScores))
-        
+
         if currentBall == 1 {
             if scores[currentFrame - 1][0] < 10 {
                 scores[currentFrame - 1][0] += 1
@@ -213,7 +204,7 @@ struct ContentView: View {
         }
         calculateFrameScores()
     }
-    
+
     func recordStrike() {
         undoStack.append((currentFrame, currentBall, scores, frameScores))
         scores[currentFrame - 1][0] = 10
@@ -221,7 +212,7 @@ struct ContentView: View {
         frameScores[currentFrame - 1] = 10
         nextFrame()
     }
-    
+
     func recordSpare() {
         undoStack.append((currentFrame, currentBall, scores, frameScores))
         if currentBall == 1 {
@@ -233,7 +224,7 @@ struct ContentView: View {
         frameScores[currentFrame - 1] = 10
         nextFrame()
     }
-    
+
     func nextBall() {
         if currentBall == 1 {
             if scores[currentFrame - 1][0] == 10 {
@@ -253,7 +244,7 @@ struct ContentView: View {
             nextFrame()
         }
     }
-    
+
     func nextFrame() {
         if currentFrame == gameType {
             endGame()
@@ -263,7 +254,7 @@ struct ContentView: View {
             frameClock = 0
         }
     }
-    
+
     func calculateFrameScores() {
         for i in 0..<gameType {
             if scores[i][0] == 10 {
@@ -275,17 +266,17 @@ struct ContentView: View {
             }
         }
     }
-    
+
     func endGame() {
         timer?.invalidate()
         _ = frameScores.reduce(0, +)
         showEndGameAlert = true
     }
-    
+
     func pauseGame() {
         isPaused.toggle()
     }
-    
+
     func undoScore() {
         if let (lastFrame, lastBall, lastScores, lastFrameScores) = undoStack.popLast() {
             currentFrame = lastFrame
@@ -295,7 +286,7 @@ struct ContentView: View {
             calculateFrameScores()
         }
     }
-    
+
     func formatScore(_ score: Int) -> String {
         if score == 10 {
             return "X"
