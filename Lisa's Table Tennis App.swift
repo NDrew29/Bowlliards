@@ -67,34 +67,19 @@ struct ContentView: View {
 
     var coinFlipView: some View {
         VStack {
-            Text("CALL IT IN THE AIR!")
-                .font(.largeTitle)
-                .padding()
-
-            Button(action: {
-                startCoinFlip()
-            }) {
-                Text("Flip Coin")
-                    .font(.title)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-            }
-            .disabled(isFlipping)
-            .padding()
-
             if isFlipping {
+                Text("CALL IT IN THE AIR!")
+                    .font(.largeTitle)
+                    .padding()
+
                 Image(systemName: coinImage)
                     .resizable()
-                    .frame(width: 100, height: 100)
+                    .frame(width: 150, height: 150)
                     .padding()
                     .onAppear {
                         self.startCoinImageFlip()
                     }
-            }
-
-            if !coinFlipResult.isEmpty {
+            } else if !coinFlipResult.isEmpty {
                 Text("Coin Flip Result: \(coinFlipResult)")
                     .font(.title)
                     .padding()
@@ -120,6 +105,18 @@ struct ContentView: View {
                         .cornerRadius(10)
                 }
                 .padding()
+            } else {
+                Button(action: {
+                    startCoinFlip()
+                }) {
+                    Text("Flip Coin")
+                        .font(.title)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .padding()
             }
         }
     }
@@ -129,7 +126,7 @@ struct ContentView: View {
             Text("Table Tennis Game")
                 .font(.largeTitle)
                 .padding()
-            
+
             Text("Match Clock: \(formatTime(seconds: matchClock))")
                 .font(.title2)
                 .padding()
@@ -189,6 +186,9 @@ struct ContentView: View {
                     .padding()
                 }
             }
+            .background(Color.gray.opacity(0.2))
+            .cornerRadius(10)
+            .padding()
 
             HStack {
                 Button(action: undoLastAction) {
@@ -200,17 +200,19 @@ struct ContentView: View {
                         .cornerRadius(10)
                 }
                 .padding()
-
-                Button(action: endGameEarly) {
-                    Text("End Game")
-                        .font(.title)
-                        .padding()
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                }
-                .padding()
             }
+
+            Spacer()
+
+            Button(action: endGameEarly) {
+                Text("End Game")
+                    .font(.title)
+                    .padding()
+                    .background(Color.red)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+            .padding()
         }
     }
 
