@@ -13,15 +13,15 @@ struct ContentView: View {
     @State private var isFlipping: Bool = false
     @State private var showSetupScreen: Bool = true
     @State private var showCoinFlipScreen: Bool = false
-    @State private var coinImage: String = "circle"
-    @State private var flipImages: [String] = ["circle", "circle.fill"]
+    @State private var coinImage: String = "centsign.circle"
+    @State private var flipImages: [String] = ["centsign.circle", "centsign.circle.fill"]
     @State private var scoreHistory: [(Int, Int, String)] = []
     @State private var raceToGames: Int = 3
     @State private var player1Games: Int = 0
     @State private var player2Games: Int = 0
     @State private var currentGame: Int = 1
     @State private var serveCounter: Int = 0
-
+    
     var body: some View {
         VStack {
             if showSetupScreen {
@@ -35,13 +35,26 @@ struct ContentView: View {
         .padding()
         .onAppear(perform: startMatch)
     }
-
+    
     var setupView: some View {
         VStack {
-            Text("Table Tennis Game & Score Keeper")
+            Image(systemName: "tennis.racket")
+                .resizable()
+                .frame(width: 250,height: 250)
+                .padding()
+            
+            Text("WELCOME TO MAIN COURT")
+                .font(.headline)
+                .underline()
+                .padding()
+            
+            Text("SCORE-A-TRON")
                 .font(.largeTitle)
                 .padding()
-
+            
+            Text("Select Number of Games")
+                .padding()
+            
             Picker("Race to Games", selection: $raceToGames) {
                 Text("3 Games").tag(3)
                 Text("5 Games").tag(5)
@@ -49,13 +62,13 @@ struct ContentView: View {
             }
             .pickerStyle(SegmentedPickerStyle())
             .padding()
-
+            
             Button(action: {
                 self.showSetupScreen = false
                 self.showCoinFlipScreen = true
             }) {
-                Text("Proceed to Coin Flip")
-                    .font(.title)
+                Text("Proceed to the Coin Flip")
+                    .font(.title3)
                     .padding()
                     .background(Color.blue)
                     .foregroundColor(.white)
@@ -64,14 +77,14 @@ struct ContentView: View {
             .padding()
         }
     }
-
+    
     var coinFlipView: some View {
         VStack {
             if isFlipping {
                 Text("CALL IT IN THE AIR!")
                     .font(.largeTitle)
                     .padding()
-
+                
                 Image(systemName: coinImage)
                     .resizable()
                     .frame(width: 150, height: 150)
@@ -109,8 +122,8 @@ struct ContentView: View {
                 Button(action: {
                     startCoinFlip()
                 }) {
-                    Text("Flip Coin")
-                        .font(.title)
+                    Text("Flip the Coin!")
+                        .font(.largeTitle)
                         .padding()
                         .background(Color.blue)
                         .foregroundColor(.white)
@@ -120,13 +133,13 @@ struct ContentView: View {
             }
         }
     }
-
+    
     var gameView: some View {
         VStack {
-            Text("Table Tennis Game")
+            Text("Let's Table Tennis!")
                 .font(.largeTitle)
                 .padding()
-
+            
             Text("Match Clock: \(formatTime(seconds: matchClock))")
                 .font(.title2)
                 .padding()
@@ -138,15 +151,17 @@ struct ContentView: View {
             Text("Current Server: \(currentServer)")
                 .font(.title2)
                 .padding()
-
+            
             Text("Current Match Score: \(player1Games) - \(player2Games)")
                 .font(.title3)
                 .padding()
-
+            
             HStack {
                 VStack {
                     Text(player1Name)
-                        .font(.title)
+                        .underline()
+                        .font(.largeTitle)
+                        .font(.system(size: 32))
                         .bold()
                     Text("\(player1Score)")
                         .font(.largeTitle)
@@ -164,10 +179,12 @@ struct ContentView: View {
                     }
                     .padding()
                 }
-
+                
                 VStack {
                     Text(player2Name)
-                        .font(.title)
+                        .underline()
+                        .font(.largeTitle)
+                        .font(.system(size: 32))
                         .bold()
                     Text("\(player2Score)")
                         .font(.largeTitle)
@@ -189,7 +206,7 @@ struct ContentView: View {
             .background(Color.gray.opacity(0.2))
             .cornerRadius(10)
             .padding()
-
+            
             HStack {
                 Button(action: undoLastAction) {
                     Text("Undo")
@@ -201,9 +218,9 @@ struct ContentView: View {
                 }
                 .padding()
             }
-
+            
             Spacer()
-
+            
             Button(action: endGameEarly) {
                 Text("End Game")
                     .font(.title)
@@ -215,7 +232,7 @@ struct ContentView: View {
             .padding()
         }
     }
-
+    
     func startMatch() {
         matchClock = 0
         timer?.invalidate()
@@ -223,7 +240,7 @@ struct ContentView: View {
             matchClock += 1
         }
     }
-
+    
     func startGame() {
         gameClock = 0
         player1Score = 0
@@ -235,7 +252,7 @@ struct ContentView: View {
             matchClock += 1
         }
     }
-
+    
     func startCoinFlip() {
         isFlipping = true
         coinFlipResult = ""
@@ -244,10 +261,10 @@ struct ContentView: View {
             self.coinFlipResult = Bool.random() ? "Heads" : "Tails"
         }
     }
-
+    
     func startCoinImageFlip() {
         var flipCount = 0
-        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
             if flipCount >= 40 {
                 timer.invalidate()
             } else {
@@ -256,13 +273,13 @@ struct ContentView: View {
             }
         }
     }
-
+    
     func formatTime(seconds: Int) -> String {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return String(format: "%02d:%02d", minutes, remainingSeconds)
     }
-
+    
     func incrementScore(for playerScore: inout Int) {
         scoreHistory.append((player1Score, player2Score, currentServer))
         playerScore += 1
@@ -272,13 +289,13 @@ struct ContentView: View {
         }
         checkForGameWin()
     }
-
+    
     func switchServer() {
         currentServer = (currentServer == player1Name) ? player2Name : player1Name
     }
-
+    
     func checkForGameWin() {
-        if (player1Score >= 11 || player2Score >= 11) && abs(player1Score - player2Score) >= 2 {
+        if (player1Score >= 10 || player2Score >= 10) && abs(player1Score - player2Score) >= 2 {
             if player1Score > player2Score {
                 player1Games += 1
                 endGame(winner: player1Name)
@@ -288,7 +305,7 @@ struct ContentView: View {
             }
         }
     }
-
+    
     func endGame(winner: String) {
         timer?.invalidate()
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
@@ -304,12 +321,12 @@ struct ContentView: View {
             window.rootViewController?.present(alert, animated: true, completion: nil)
         }
     }
-
+    
     func endMatch(winner: String) {
         timer?.invalidate()
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let window = windowScene.windows.first {
-            let alert = UIAlertController(title: "Match Over", message: "\(winner) wins the match!", preferredStyle: .alert)
+            let alert = UIAlertController(title: "Match Over", message: "\(winner) is the fucking best!", preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
                 self.showSetupScreen = true
                 self.resetMatch()
@@ -317,7 +334,7 @@ struct ContentView: View {
             window.rootViewController?.present(alert, animated: true, completion: nil)
         }
     }
-
+    
     func endGameEarly() {
         timer?.invalidate()
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
@@ -330,7 +347,7 @@ struct ContentView: View {
             window.rootViewController?.present(alert, animated: true, completion: nil)
         }
     }
-
+    
     func undoLastAction() {
         if let lastState = scoreHistory.popLast() {
             player1Score = lastState.0
@@ -339,7 +356,7 @@ struct ContentView: View {
             serveCounter = (player1Score + player2Score) % 4
         }
     }
-
+    
     func resetMatch() {
         player1Score = 0
         player2Score = 0
@@ -361,3 +378,4 @@ struct TableTennisGameApp: App {
         }
     }
 }
+ 
