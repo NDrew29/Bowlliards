@@ -93,7 +93,7 @@ struct ContentView: View {
                     .padding()
                 
                 Button(action: {
-                    currentServer = coinFlipResult == "Heads" ? player1Name : player2Name
+                    currentServer = player1Name 
                     showCoinFlipScreen = false
                     startGame()
                 }) {
