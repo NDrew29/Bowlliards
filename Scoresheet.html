@@ -21,7 +21,108 @@
     .frame-label {
         width: 40px;
     }
+    .frame-cell {
+        position: relative;
+        text-align: right; /* Aligns text to right within the cell */
+    }
+    .input-container {
+        position: absolute;
+        top: 0;
+        right: 0;
+    }
+    .input-box {
+        width: 20px;
+        margin-left: 5px;
+        text-align: center;
+    }
+    .score-total {
+        font-weight: bold;
+        margin-top: 5px;
+    }
 </style>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var frameCells = document.querySelectorAll('.frame-cell');
+
+        // Add event listeners for initial inputs
+        frameCells.forEach(function(frameCell) {
+            var inputs = frameCell.getElementsByTagName('input');
+            attachInputListeners(inputs, frameCell);
+        });
+
+        // Function to attach input listeners
+        function attachInputListeners(inputs, frameCell) {
+            for (var i = 0; i < inputs.length; i++) {
+                inputs[i].addEventListener('input', function() {
+                    calculateFrameTotal(frameCell);
+                });
+            }
+        }
+
+        // Add event listeners for focus changes (tabbing)
+        document.addEventListener('focusin', function(e) {
+            var target = e.target;
+            if (target.matches('.input-box')) {
+                var frameCell = target.closest('.frame-cell');
+                var inputs = frameCell.getElementsByTagName('input');
+                attachInputListeners(inputs, frameCell);
+            }
+        });
+    });
+
+    function calculateFrameTotal(frameCell) {
+        var inputs = frameCell.getElementsByTagName('input');
+        var total = 0;
+        var strikeCount = 0;
+        var spareCount = 0;
+        var extraBalls = 0;
+
+        // Handle 1 and 9 scenario to convert to spare
+        if (inputs.length === 2) {
+            var firstScore = parseInt(inputs[0].value) || 0;
+            var secondScore = parseInt(inputs[1].value) || 0;
+
+            if (firstScore === 1 && secondScore === 9) {
+                inputs[1].value = '/';
+                inputs[1].setAttribute('readonly', true); // Lock the spare input
+                total = 10; // Initial spare score
+                return updateTotalAndExtraBalls();
+            }
+        }
+
+        // Regular scoring calculation
+        for (var i = 0; i < inputs.length; i++) {
+            var score = 0;
+            if (inputs[i].value === 'X') {
+                score = 10;
+                strikeCount++;
+                extraBalls += 2;
+            } else if (inputs[i].value === '/') {
+                score = 9; // Default 9 for spare, as per the provided logic
+                spareCount++;
+                extraBalls++;
+            } else {
+                score = parseInt(inputs[i].value) || 0;
+            }
+            total += score;
+        }
+
+        // Adjust total for strikes and spares with extra balls
+        if (strikeCount > 0) {
+            total += 10 * (strikeCount - 1); // Add 10 for each previous strike
+        }
+        if (spareCount > 0) {
+            total += 10; // Add 10 for the spare itself
+        }
+
+        updateTotalAndExtraBalls();
+
+        function updateTotalAndExtraBalls() {
+            var scoreTotal = frameCell.getElementsByClassName('score-total')[0];
+            scoreTotal.textContent = total;
+        }
+    }
+</script>
 </head>
 <body>
 
@@ -38,19 +139,77 @@
     <tbody>
         <tr>
             <td>Player 1</td>
-            <td><input type="text" size="1"></td><td><input type="text" size="1"></td>
-            <td><input type="text" size="1"></td><td><input type="text" size="1"></td>
-            <td><input type="text" size="1"></td><td><input type="text" size="1"></td>
-            <td><input type="text" size="1"></td><td><input type="text" size="1"></td>
-            <td><input type="text" size="1"></td><td><input type="text" size="1"></td>
-        </tr>
-        <tr>
-            <td>Player 2</td>
-            <td><input type="text" size="1"></td><td><input type="text" size="1"></td>
-            <td><input type="text" size="1"></td><td><input type="text" size="1"></td>
-            <td><input type="text" size="1"></td><td><input type="text" size="1"></td>
-            <td><input type="text" size="1"></td><td><input type="text" size="1"></td>
-            <td><input type="text" size="1"></td><td><input type="text" size="1"></td>
+            <td id="frame_1" class="frame-cell">
+                <div class="input-container">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                </div>
+                <div class="score-total">0</div>
+            </td>
+            <td id="frame_2" class="frame-cell">
+                <div class="input-container">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                </div>
+                <div class="score-total">0</div>
+            </td>
+            <td id="frame_3" class="frame-cell">
+                <div class="input-container">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                </div>
+                <div class="score-total">0</div>
+            </td>
+            <td id="frame_4" class="frame-cell">
+                <div class="input-container">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                </div>
+                <div class="score-total">0</div>
+            </td>
+            <td id="frame_5" class="frame-cell">
+                <div class="input-container">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                </div>
+                <div class="score-total">0</div>
+            </td>
+            <td id="frame_6" class="frame-cell">
+                <div class="input-container">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                </div>
+                <div class="score-total">0</div>
+            </td>
+            <td id="frame_7" class="frame-cell">
+                <div class="input-container">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                </div>
+                <div class="score-total">0</div>
+            </td>
+            <td id="frame_8" class="frame-cell">
+                <div class="input-container">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                </div>
+                <div class="score-total">0</div>
+            </td>
+            <td id="frame_9" class="frame-cell">
+                <div class="input-container">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                </div>
+                <div class="score-total">0</div>
+            </td>
+            <td id="frame_10" class="frame-cell">
+                <div class="input-container">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                    <input type="text" class="input-box" size="1">
+                </div>
+                <div class="score-total">0</div>
+            </td>
         </tr>
     </tbody>
 </table>
