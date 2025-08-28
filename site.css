@@ -1,0 +1,75 @@
+/* Light look like the mockup */
+
+:root {
+  --text: #333;
+  --bg: #fafafa;
+  --cell: #fff;
+  --head: #f5f5f5;
+  --border: #ddd;
+  --hi: #fff8dc;
+  --green: #6cba46;
+  --green-d: #5ea53a;
+  --blue: #4287f5;
+  --orange: #f5a142;
+  --red: #e74c3c;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: system-ui, Arial, sans-serif; padding: 16px; }
+
+header h1 { margin-bottom: 16px; font-size: 1.8rem; }
+
+.frames-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+.frames-table th, .frames-table td {
+  border: 1px solid var(--border);
+  background: var(--cell);
+  padding: 8px;
+  text-align: center;
+}
+.frames-table th { background: var(--head); font-weight: normal; }
+
+.totals-col { background: var(--head); }
+
+.frame {
+  display: grid;
+  grid-template-columns: 1fr 1fr;   /* first 9 frames show 2; JS adds a 3rd in 10th */
+  gap: 0;
+  width: 72px;                      /* compact like the mockup */
+  margin: 0 auto;
+}
+.frame[data-frame="9"] { grid-template-columns: 1fr 1fr 1fr; }
+
+.mini {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  height: 34px; display: grid; place-items: center;
+  font-weight: 600; cursor: pointer;
+}
+.mini:nth-child(2n) { border-right: none; }
+.frame[data-frame="9"] .mini:nth-child(3n) { border-right: none; }
+.mini.selected { background: var(--hi); }
+.mini.disabled { color: #aaa; cursor: default; }
+
+#keypad { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 10px 0 20px; }
+#keypad button {
+  width: 56px; height: 40px; border: none; border-radius: 4px;
+  background: var(--green); color: #fff; font-weight: 700; cursor: pointer;
+}
+#keypad button:hover { background: var(--green-d); }
+#keypad .wide { flex: 1 1 120px; }
+#keypad .blue { background: var(--blue); }
+#keypad .orange { background: var(--orange); }
+#keypad .red { background: var(--red); }
+
+.bottom-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 640px; margin: 0 auto;
+}
+.bottom-bar input[type="date"] {
+  margin-left: 8px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px;
+}
+.add-btn {
+  background: var(--green); color: #fff; border: none; padding: 8px 16px;
+  border-radius: 4px; cursor: pointer;
+}
+.add-btn:hover { background: var(--green-d); }
