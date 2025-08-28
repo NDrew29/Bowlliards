@@ -1,250 +1,253 @@
-// Bowlliards: 10 frames; 2 rolls per frame (first 9); 10th may have bonus.
-// Scoring matches bowling: strike adds next two rolls; spare adds next roll.
+// Multiple boards on one page. One shared keypad edits the currently selected mini.
+// Bowling-style scoring (Bowlliards): strike adds next two rolls; spare adds next roll.
 
-const STORAGE_KEY = 'bowlliards.games.v1';
+const $ = (q,root=document)=>root.querySelector(q);
+const $$ = (q,root=document)=>Array.from(root.querySelectorAll(q));
+const todayISO = ()=>{const d=new Date(),o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);};
 
-// --- State ---
-let game = freshGame();
-let active = { frame: 0, roll: 0 }; // roll: 0,1,2 (2 only in 10th)
-
-function freshGame() {
+// ----- Data models -----
+function emptyFrame(){ return { r1:null, r2:null, r3:null, cumul:0 }; }
+function emptyBoard(){
   return {
     date: todayISO(),
-    frames: Array.from({ length: 10 }, () => ({ r1: null, r2: null, r3: null, cumul: 0 })),
+    frames: Array.from({length:10}, emptyFrame),
     total: 0
   };
 }
+let boards = [emptyBoard()];
 
-function todayISO() {
-  const d = new Date(), off = d.getTimezoneOffset();
-  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
-}
+// Which mini is active {b:boardIndex,f:frameIndex,r:rollIndex}
+let active = { b:0, f:0, r:0 };
 
-// --- Helpers ---
-const $ = (q, root = document) => root.querySelector(q);
-const $$ = (q, root = document) => Array.from(root.querySelectorAll(q));
-
-// Build mini boxes inside frame cells
-function buildFrames() {
-  $$('.frame').forEach((cell) => {
-    const idx = +cell.dataset.frame;
-    cell.innerHTML = '';
-    const count = idx === 9 ? 3 : 2;
-    for (let r = 0; r < count; r++) {
-      const mini = document.createElement('div');
-      mini.className = 'mini';
-      mini.dataset.frame = idx;
-      mini.dataset.roll = r;
-      mini.addEventListener('click', () => { active.frame = idx; active.roll = r; render(); });
-      cell.appendChild(mini);
-    }
-  });
-}
-
-// --- Scoring ---
-function allRolls() {
-  const rolls = [];
-  for (let f = 0; f < 9; f++) {
-    const { r1, r2 } = game.frames[f];
-    if (r1 == null) break;
-    if (r1 === 10) rolls.push(10);
-    else { rolls.push(r1); if (r2 != null) rolls.push(r2); }
+// ----- Scoring -----
+function rollsFor(frames){
+  const rolls=[];
+  for(let f=0;f<9;f++){
+    const {r1,r2} = frames[f];
+    if(r1==null) break;
+    if(r1===10) rolls.push(10);
+    else { rolls.push(r1); if(r2!=null) rolls.push(r2); }
   }
-  // 10th
-  const F = game.frames[9];
-  if (F.r1 != null) {
-    rolls.push(F.r1);
-    if (F.r2 != null) rolls.push(F.r2);
-    if (F.r3 != null) rolls.push(F.r3);
-  }
+  const F = frames[9];
+  if(F.r1!=null){ rolls.push(F.r1); if(F.r2!=null) rolls.push(F.r2); if(F.r3!=null) rolls.push(F.r3); }
   return rolls;
 }
-
-function computeScores() {
-  const rolls = allRolls();
-  let i = 0, cumul = 0;
-  for (let f = 0; f < 10; f++) {
-    if (i >= rolls.length) { game.frames[f].cumul = cumul; continue; }
-    let frameScore = 0;
+function computeBoard(b){
+  const frames = b.frames;
+  const rolls = rollsFor(frames);
+  let i=0, cum=0;
+  for(let f=0;f<10;f++){
+    if(i>=rolls.length){ frames[f].cumul=cum; continue; }
     const r1 = rolls[i];
-    if (f < 9) {
-      if (r1 === 10) {                    // strike
-        frameScore = 10 + (rolls[i+1] || 0) + (rolls[i+2] || 0);
-        i += 1;
-      } else {
-        const r2 = rolls[i+1] || 0;
-        const sum = r1 + r2;
-        frameScore = (sum === 10) ? 10 + (rolls[i+2] || 0) : sum;
-        i += 2;
-      }
-    } else {
-      const r2 = rolls[i+1] || 0, r3 = rolls[i+2] || 0;
-      frameScore = r1 + r2 + r3;
-      i = rolls.length;
+    let score = 0;
+    if(f<9){
+      if(r1===10){ score = 10 + (rolls[i+1]||0) + (rolls[i+2]||0); i+=1; }
+      else { const r2=rolls[i+1]||0, sum=r1+r2; score = (sum===10)? 10 + (rolls[i+2]||0) : sum; i+=2; }
+    }else{
+      const r2=rolls[i+1]||0, r3=rolls[i+2]||0; score = r1+r2+r3; i = rolls.length;
     }
-    cumul += frameScore;
-    game.frames[f].cumul = cumul;
+    cum += score; frames[f].cumul = cum;
   }
-  game.total = cumul;
+  b.total = cum;
 }
 
-// --- Rendering ---
-function markSymbol(fr, idx, frameIndex) {
-  const val = idx === 0 ? fr.r1 : idx === 1 ? fr.r2 : fr.r3;
-  if (val == null) return '';
-  if (frameIndex < 9) {
-    if (idx === 0 && val === 10) return 'X';
-    if (idx === 1 && (fr.r1 || 0) + (fr.r2 || 0) === 10) return '/';
-    return String(val);
+// ----- Rendering -----
+function markSymbol(fr, idx, isTenth){
+  const v = idx===0 ? fr.r1 : idx===1 ? fr.r2 : fr.r3;
+  if(v==null) return '';
+  if(!isTenth){
+    if(idx===0 && v===10) return 'X';
+    if(idx===1 && (fr.r1||0)+(fr.r2||0)===10) return '/';
+    return String(v);
   } else {
-    // 10th frame symbols
-    if (idx === 0) return val === 10 ? 'X' : String(val);
-    if (idx === 1) {
-      if (fr.r1 === 10) return val === 10 ? 'X' : String(val);
-      return (fr.r1 || 0) + (fr.r2 || 0) === 10 ? '/' : String(val);
+    if(idx===0) return v===10 ? 'X' : String(v);
+    if(idx===1){
+      if(fr.r1===10) return v===10 ? 'X' : String(v);
+      return (fr.r1||0)+(fr.r2||0)===10 ? '/' : String(v);
     }
-    // idx === 2
-    if (fr.r1 === 10) {
-      if (fr.r2 === 10) return val === 10 ? 'X' : String(val);
-      return (fr.r2 || 0) + (fr.r3 || 0) === 10 ? '/' : String(val);
-    } else {
-      return (fr.r1 || 0) + (fr.r2 || 0) === 10 ? (val === 10 ? 'X' : String(val)) : '';
+    // idx 2
+    if(fr.r1===10){
+      if(fr.r2===10) return v===10 ? 'X' : String(v);
+      return (fr.r2||0)+(fr.r3||0)===10 ? '/' : String(v);
     }
+    return (fr.r1||0)+(fr.r2||0)===10 ? (v===10?'X':String(v)) : '';
   }
 }
 
-function render() {
-  $('#gameDate').value = game.date;
+function render(){
+  const host = $('#boards');
+  host.innerHTML = '';
 
-  computeScores();
-  $('#grandTotal').textContent = game.total;
-  for (let i = 0; i < 10; i++) $('#cum' + i).textContent = game.frames[i].cumul;
+  boards.forEach((b, bi)=>{
+    computeBoard(b);
 
-  $$('.frame').forEach(cell => {
-    const fIdx = +cell.dataset.frame;
-    const minis = $$('.mini', cell);
-    const fr = game.frames[fIdx];
-    minis.forEach((m, i) => {
-      m.textContent = markSymbol(fr, i, fIdx);
-      m.classList.toggle('selected', active.frame === fIdx && active.roll === i);
-      // enable r3 in 10th only when earned
-      if (fIdx === 9 && i === 2) {
-        const eligible = fr.r1 === 10 || ((fr.r1 || 0) + (fr.r2 || 0) === 10);
-        m.classList.toggle('disabled', !eligible);
-      } else {
-        m.classList.remove('disabled');
+    // header
+    const header = document.createElement('div');
+    header.className = 'board-header';
+    header.innerHTML = `
+      <span class="label">Game Date:</span>
+      <input type="date" value="${b.date}" data-bi="${bi}" />
+      <span class="totals">Total: <span id="total-${bi}">${b.total}</span></span>
+    `;
+    header.querySelector('input').addEventListener('change',(e)=>{
+      b.date = e.target.value || b.date;
+    });
+
+    // table
+    const table = document.createElement('table');
+    table.className = 'frames-table';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+          <th>6</th><th>7</th><th>8</th><th>9</th><th>10</th>
+          <th>Max Possible</th><th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row-rolls">
+          <td>Rolls</td>
+          ${Array.from({length:10},(_,i)=>`<td><div class="frame ${i===9?'tenth':''}" data-bi="${bi}" data-fi="${i}"></div></td>`).join('')}
+          <td rowspan="2" class="totals-col"><strong>300</strong></td>
+          <td rowspan="2" class="totals-col"><div id="grand-${bi}">${b.total}</div></td>
+        </tr>
+        <tr class="row-cum">
+          <td>0</td>
+          ${Array.from({length:10},(_,i)=>`<td id="cum-${bi}-${i}">0</td>`).join('')}
+        </tr>
+      </tbody>
+    `;
+
+    const boardEl = document.createElement('section');
+    boardEl.className = 'board';
+    boardEl.appendChild(header);
+    boardEl.appendChild(table);
+    host.appendChild(boardEl);
+
+    // minis
+    const framesEls = $$('.frame', table);
+    framesEls.forEach((frameEl)=>{
+      const fi = +frameEl.dataset.fi;
+      const fr = b.frames[fi];
+      frameEl.innerHTML = '';
+      const count = fi===9 ? 3 : 2;
+      for(let r=0;r<count;r++){
+        const mini = document.createElement('div');
+        mini.className = 'mini';
+        mini.dataset.bi = String(bi);
+        mini.dataset.fi = String(fi);
+        mini.dataset.ri = String(r);
+        mini.textContent = markSymbol(fr, r, fi===9);
+        // 10th eligibility for r3
+        if(fi===9 && r===2){
+          const eligible = fr.r1===10 || ((fr.r1||0)+(fr.r2||0)===10);
+          if(!eligible) mini.classList.add('disabled');
+        }
+        if(active.b===bi && active.f===fi && active.r===r) mini.classList.add('selected');
+        mini.addEventListener('click', ()=>{
+          active = { b: bi, f: fi, r: r };
+          render();
+          // scroll the active into view on mobile
+          mini.scrollIntoView({block:'nearest', inline:'center'});
+        });
+        frameEl.appendChild(mini);
       }
     });
+
+    // fill cumulative cells
+    b.frames.forEach((fr, i)=>{ $(`#cum-${bi}-${i}`).textContent = fr.cumul; });
+    $(`#grand-${bi}`).textContent = b.total;
+    $(`#total-${bi}`).textContent = b.total;
   });
 }
 
-// --- Input constraints & actions ---
-function maxFor(frameIndex, rollIndex) {
-  const fr = game.frames[frameIndex];
-  if (frameIndex < 9) {
-    if (rollIndex === 0) return 10;
-    return Math.max(0, 10 - (fr.r1 || 0));
-  } else {
-    if (rollIndex === 0) return 10;
-    if (rollIndex === 1) return (fr.r1 === 10) ? 10 : Math.max(0, 10 - (fr.r1 || 0));
-    // rollIndex === 2
-    if (fr.r1 === 10) return (fr.r2 === 10) ? 10 : Math.max(0, 10 - (fr.r2 || 0));
-    return ((fr.r1 || 0) + (fr.r2 || 0) === 10) ? 10 : 0;
+// ----- Edits -----
+function maxFor(bi, fi, ri){
+  const fr = boards[bi].frames[fi];
+  if(fi<9){
+    if(ri===0) return 10;
+    return Math.max(0, 10 - (fr.r1||0));
+  }else{
+    if(ri===0) return 10;
+    if(ri===1) return fr.r1===10 ? 10 : Math.max(0, 10 - (fr.r1||0));
+    if(fr.r1===10) return fr.r2===10 ? 10 : Math.max(0, 10 - (fr.r2||0));
+    return ((fr.r1||0)+(fr.r2||0)===10) ? 10 : 0;
   }
 }
 
-function setValue(value) {
-  const f = active.frame, r = active.roll, fr = game.frames[f];
+function setValue(value){
+  const {b:bi,f:fi,r:ri} = active;
+  const fr = boards[bi].frames[fi];
 
-  // Clear
-  if (value === 'CLR') {
-    if (r === 0) fr.r1 = null;
-    if (r === 1) fr.r2 = null;
-    if (r === 2) fr.r3 = null;
-    computeScores(); render();
-    return;
+  if(value==='CLR'){
+    if(ri===0) fr.r1=null;
+    if(ri===1) fr.r2=null;
+    if(ri===2) fr.r3=null;
+    computeBoard(boards[bi]); render(); return;
   }
 
-  // Convert symbols
-  if (value === 'X') value = 10;
-  if (value === '/') {
-    if (f < 9 && r === 1 && fr.r1 != null && fr.r1 < 10) {
+  if(value==='X'){ value=10; }
+  if(value==='/'){
+    if(fi<9 && ri===1 && fr.r1!=null && fr.r1<10){
       fr.r2 = 10 - fr.r1;
-    } else if (f === 9) {
-      if (r === 1 && fr.r1 != null && fr.r1 < 10) {
-        fr.r2 = 10 - fr.r1;
-      } else if (r === 2 && fr.r1 === 10 && fr.r2 != null && fr.r2 < 10) {
-        fr.r3 = 10 - fr.r2;
-      }
+    }else if(fi===9){
+      if(ri===1 && fr.r1!=null && fr.r1<10){ fr.r2 = 10 - fr.r1; }
+      else if(ri===2 && fr.r1===10 && fr.r2!=null && fr.r2<10){ fr.r3 = 10 - fr.r2; }
     }
-    computeScores(); render();
-    autoAdvance();
-    return;
+    computeBoard(boards[bi]); render(); autoAdvance(); return;
   }
 
-  // Numeric
   const n = Number(value);
-  if (Number.isNaN(n)) return;
+  if(Number.isNaN(n)) return;
 
-  const max = maxFor(f, r);
-  const clamped = Math.min(Math.max(0, n), max);
-  if (r === 0) {
-    fr.r1 = clamped;
-    if (f < 9 && clamped === 10) fr.r2 = null; // strike clears 2nd in frames 1–9
-  } else if (r === 1) {
-    fr.r2 = clamped;
-  } else {
-    fr.r3 = clamped;
-  }
+  const max = maxFor(bi,fi,ri);
+  const v = Math.min(Math.max(0,n), max);
+  if(ri===0){
+    fr.r1 = v;
+    if(fi<9 && v===10) fr.r2 = null; // strike wipes second box
+  }else if(ri===1){ fr.r2 = v; }
+  else{ fr.r3 = v; }
 
-  computeScores(); render();
-  autoAdvance();
+  computeBoard(boards[bi]); render(); autoAdvance();
 }
 
-function autoAdvance() {
-  let f = active.frame, r = active.roll, fr = game.frames[f];
-  if (f < 9) {
-    if (r === 0) {
-      if ((fr.r1 || 0) === 10) { active = { frame: f + 1, roll: 0 }; }
-      else active = { frame: f, roll: 1 };
-    } else {
-      active = { frame: f + 1, roll: 0 };
+function autoAdvance(){
+  const {b:bi,f:fi,r:ri} = active;
+  const fr = boards[bi].frames[fi];
+  if(fi<9){
+    if(ri===0){
+      if(fr.r1===10) active = {b:bi, f:fi+1, r:0};
+      else active = {b:bi, f:fi, r:1};
+    }else{
+      active = {b:bi, f:fi+1, r:0};
     }
-  } else {
-    // 10th
-    if (r === 0) active = { frame: f, roll: 1 };
-    else if (r === 1) {
-      const earnR3 = fr.r1 === 10 || ((fr.r1 || 0) + (fr.r2 || 0) === 10);
-      active = { frame: f, roll: earnR3 ? 2 : 1 };
-    } else {
-      active = { frame: f, roll: 2 };
+  }else{
+    if(ri===0){ active = {b:bi, f:fi, r:1}; }
+    else if(ri===1){
+      const allowR3 = fr.r1===10 || ((fr.r1||0)+(fr.r2||0)===10);
+      active = {b:bi, f:fi, r: allowR3 ? 2 : 1};
+    }else{
+      active = {b:bi, f:fi, r:2};
     }
   }
   render();
 }
 
-// --- Keypad wiring ---
-$('#keypad').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-k]');
-  if (!b) return;
-  setValue(b.dataset.k);
+// ----- Events -----
+$('#keypad').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-k]');
+  if(!btn) return;
+  setValue(btn.dataset.k);
 });
 
-// --- Add another game (saves current then resets) ---
-$('#btnAddGame').addEventListener('click', () => {
-  const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  list.unshift(JSON.parse(JSON.stringify(game)));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-
-  game = freshGame();
-  active = { frame: 0, roll: 0 };
-  $('#gameDate').value = game.date;
+$('#btnAddGame').addEventListener('click', ()=>{
+  boards.push(emptyBoard());
+  // focus the new board's first mini
+  active = { b: boards.length-1, f:0, r:0 };
   render();
 });
 
-// --- Init ---
-window.addEventListener('DOMContentLoaded', () => {
-  $('#gameDate').value = game.date;
-  buildFrames();
+// ----- Boot -----
+window.addEventListener('DOMContentLoaded', ()=>{
   render();
 });
