@@ -9,6 +9,22 @@
 body{background:var(--bg);color:var(--text);font-family:system-ui,Arial,sans-serif;padding:16px}
 header h1{margin-bottom:16px;font-size:1.8rem}
 
+/* Stats cards */
+.stats-cards{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+.stats-cards .card{
+  background:var(--cell);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:12px;
+}
+.stats-cards .label{color:#666;font-size:.9rem;margin-bottom:6px}
+.stats-cards .value{font-size:1.6rem;font-weight:800}
+
 .board{border-top:1px solid #e8e8e8;padding-top:12px;margin-bottom:20px}
 .board-header{display:flex;align-items:center;gap:16px;margin:6px 0 10px}
 .board-header .label{font-weight:600}
@@ -39,3 +55,7 @@ header h1{margin-bottom:16px;font-size:1.8rem}
 .bottom-actions{display:flex;justify-content:flex-end}
 .add-btn{background:var(--green);color:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer}
 .add-btn:hover{background:var(--green-d)}
+
+@media (max-width: 640px){
+  .stats-cards{grid-template-columns: repeat(2, minmax(140px, 1fr));}
+}
