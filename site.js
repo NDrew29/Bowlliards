@@ -1,5 +1,6 @@
 // Multiple boards on one page. One shared keypad edits the currently selected mini.
 // Bowling-style scoring (Bowlliards): strike adds next two rolls; spare adds next roll.
+// Now with global stats cards (averages across ALL boards on the page).
 
 const $ = (q,root=document)=>root.querySelector(q);
 const $$ = (q,root=document)=>Array.from(root.querySelectorAll(q));
@@ -51,6 +52,41 @@ function computeBoard(b){
   b.total = cum;
 }
 
+// ----- Stats (across all boards) -----
+function computeGlobalStats(){
+  let r1Sum=0, r1Cnt=0;
+  let r2Sum=0, r2Cnt=0;
+  let frameSum=0, frameCnt=0;
+  let gameSum=0, gameCnt=0;
+
+  boards.forEach(b=>{
+    let gameRaw=0, anyFrame=false;
+    b.frames.forEach((fr,fi)=>{
+      const hasFrame = fr.r1!=null;
+      if(hasFrame){
+        anyFrame=true;
+        frameCnt++;
+        const raw = (fr.r1||0)+(fr.r2||0)+(fi===9?(fr.r3||0):0);
+        frameSum += raw;
+      }
+      if(fr.r1!=null){ r1Cnt++; r1Sum += fr.r1; }
+      if(fr.r2!=null){ r2Cnt++; r2Sum += fr.r2; }
+      gameRaw += (fr.r1||0)+(fr.r2||0)+(fi===9?(fr.r3||0):0);
+    });
+    if(anyFrame){ gameCnt++; gameSum += gameRaw; }
+  });
+
+  const avgR1 = r1Cnt ? (r1Sum/r1Cnt) : 0;
+  const avgR2 = r2Cnt ? (r2Sum/r2Cnt) : 0;
+  const avgPerFrame = frameCnt ? (frameSum/frameCnt) : 0;
+  const avgPerGame = gameCnt ? (gameSum/gameCnt) : 0;
+
+  $('#stat-avg-r1').textContent    = avgR1.toFixed(2);
+  $('#stat-avg-r2').textContent    = avgR2.toFixed(2);
+  $('#stat-avg-frame').textContent = avgPerFrame.toFixed(2);
+  $('#stat-avg-game').textContent  = avgPerGame.toFixed(2);
+}
+
 // ----- Rendering -----
 function markSymbol(fr, idx, isTenth){
   const v = idx===0 ? fr.r1 : idx===1 ? fr.r2 : fr.r3;
@@ -91,6 +127,7 @@ function render(){
     `;
     header.querySelector('input').addEventListener('change',(e)=>{
       b.date = e.target.value || b.date;
+      computeGlobalStats();
     });
 
     // table
@@ -99,7 +136,8 @@ function render(){
     table.innerHTML = `
       <thead>
         <tr>
-          <th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+          <th></th>
+          <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
           <th>6</th><th>7</th><th>8</th><th>9</th><th>10</th>
           <th>Max Possible</th><th>Total</th>
         </tr>
@@ -147,18 +185,20 @@ function render(){
         mini.addEventListener('click', ()=>{
           active = { b: bi, f: fi, r: r };
           render();
-          // scroll the active into view on mobile
           mini.scrollIntoView({block:'nearest', inline:'center'});
         });
         frameEl.appendChild(mini);
       }
     });
 
-    // fill cumulative cells
+    // fill cumulative cells and totals
     b.frames.forEach((fr, i)=>{ $(`#cum-${bi}-${i}`).textContent = fr.cumul; });
     $(`#grand-${bi}`).textContent = b.total;
     $(`#total-${bi}`).textContent = b.total;
   });
+
+  // After all boards render, recompute and paint global stats
+  computeGlobalStats();
 }
 
 // ----- Edits -----
