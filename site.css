@@ -73,6 +73,20 @@ header h1{flex:1;font-size:1.8rem;margin:0 0 12px}
 .ghost-card{background:var(--cell);border:1px solid var(--border);border-radius:8px;padding:10px}
 .ghost-card h3{font-size:1rem;margin-bottom:6px}
 
+/* RDS */
+.rds-wrap{display:block;gap:16px}
+.rds-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 0}
+.rds-actions{display:flex;gap:8px}
+.rds-level{background:var(--cell);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px}
+.rds-level-head{display:flex;gap:24px;align-items:center;margin-bottom:8px}
+.rds-table td button{border:1px solid var(--border);background:var(--cell);padding:6px 10px;border-radius:4px;cursor:pointer}
+.rds-table td .ok{border-color:var(--green);color:var(--green)}
+.rds-table td .bad{border-color:var(--red);color:var(--red)}
+.rds-next{display:flex;justify-content:space-between;gap:16px}
+.rds-log-list,.rds-history-list{display:grid;grid-template-columns:repeat(auto-fit, minmax(280px,1fr));gap:10px}
+.rds-card{background:var(--cell);border:1px solid var(--border);border-radius:8px;padding:10px}
+
+
 @media (max-width: 880px){
   .stats-cards{grid-template-columns:repeat(2, minmax(160px,1fr))}
 }
