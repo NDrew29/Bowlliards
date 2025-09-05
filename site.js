@@ -1,18 +1,18 @@
 // Multiple boards on one page. One shared keypad edits the currently selected mini.
 // Bowling-style scoring (Bowlliards): strike adds next two rolls; spare adds next roll.
-// Now with global stats cards (averages across ALL boards on the page).
+// Global KPI cards + per-board Game Timer (Start / Pause / Stop).
 
-const $ = (q,root=document)=>root.querySelector(q);
+const $  = (q,root=document)=>root.querySelector(q);
 const $$ = (q,root=document)=>Array.from(root.querySelectorAll(q));
 const todayISO = ()=>{const d=new Date(),o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);};
 
-// ----- Data models -----
 function emptyFrame(){ return { r1:null, r2:null, r3:null, cumul:0 }; }
 function emptyBoard(){
   return {
     date: todayISO(),
     frames: Array.from({length:10}, emptyFrame),
-    total: 0
+    total: 0,
+    timer: { elapsedMs: 0, running: false, lastStart: null }
   };
 }
 let boards = [emptyBoard()];
@@ -20,7 +20,7 @@ let boards = [emptyBoard()];
 // Which mini is active {b:boardIndex,f:frameIndex,r:rollIndex}
 let active = { b:0, f:0, r:0 };
 
-// ----- Scoring -----
+// ---------- Scoring ----------
 function rollsFor(frames){
   const rolls=[];
   for(let f=0;f<9;f++){
@@ -52,42 +52,63 @@ function computeBoard(b){
   b.total = cum;
 }
 
-// ----- Stats (across all boards) -----
+// ---------- Global KPIs ----------
 function computeGlobalStats(){
   let r1Sum=0, r1Cnt=0;
   let r2Sum=0, r2Cnt=0;
   let frameSum=0, frameCnt=0;
   let gameSum=0, gameCnt=0;
+  let totalBalls=0;
+
+  // strike/spare/open across frames that have r1 (i.e., started frames)
+  let startedFrames=0, strikeFrames=0, spareFrames=0, openFrames=0;
 
   boards.forEach(b=>{
     let gameRaw=0, anyFrame=false;
     b.frames.forEach((fr,fi)=>{
-      const hasFrame = fr.r1!=null;
-      if(hasFrame){
+      const started = fr.r1!=null;
+      if(started){
+        startedFrames++;
         anyFrame=true;
-        frameCnt++;
-        const raw = (fr.r1||0)+(fr.r2||0)+(fi===9?(fr.r3||0):0);
-        frameSum += raw;
+        // per-frame raw total (r3 only counts in 10th)
+        const raw = (fr.r1||0) + (fr.r2||0) + (fi===9 ? (fr.r3||0) : 0);
+        frameSum += raw; frameCnt++;
+        totalBalls += raw;
+
+        // strike/spare/open classification (bowling-style)
+        if(fr.r1===10) strikeFrames++;
+        else if((fr.r1||0)+(fr.r2||0)===10) spareFrames++;
+        else openFrames++;
       }
+
       if(fr.r1!=null){ r1Cnt++; r1Sum += fr.r1; }
       if(fr.r2!=null){ r2Cnt++; r2Sum += fr.r2; }
+
       gameRaw += (fr.r1||0)+(fr.r2||0)+(fi===9?(fr.r3||0):0);
     });
     if(anyFrame){ gameCnt++; gameSum += gameRaw; }
   });
 
-  const avgR1 = r1Cnt ? (r1Sum/r1Cnt) : 0;
-  const avgR2 = r2Cnt ? (r2Sum/r2Cnt) : 0;
+  const avgR1       = r1Cnt ? (r1Sum/r1Cnt) : 0;
+  const avgR2       = r2Cnt ? (r2Sum/r2Cnt) : 0;
   const avgPerFrame = frameCnt ? (frameSum/frameCnt) : 0;
-  const avgPerGame = gameCnt ? (gameSum/gameCnt) : 0;
+  const avgPerGame  = gameCnt ? (gameSum/gameCnt) : 0;
 
-  $('#stat-avg-r1').textContent    = avgR1.toFixed(2);
-  $('#stat-avg-r2').textContent    = avgR2.toFixed(2);
-  $('#stat-avg-frame').textContent = avgPerFrame.toFixed(2);
-  $('#stat-avg-game').textContent  = avgPerGame.toFixed(2);
+  const strikePct = startedFrames ? (100*strikeFrames/startedFrames) : 0;
+  const sparePct  = startedFrames ? (100*spareFrames/startedFrames) : 0;
+  const openPct   = startedFrames ? (100*openFrames/startedFrames)   : 0;
+
+  $('#stat-avg-r1').textContent     = avgR1.toFixed(2);
+  $('#stat-avg-r2').textContent     = avgR2.toFixed(2);
+  $('#stat-avg-frame').textContent  = avgPerFrame.toFixed(2);
+  $('#stat-avg-game').textContent   = avgPerGame.toFixed(2);
+  $('#stat-total-balls').textContent= totalBalls.toString();
+  $('#stat-strike-pct').textContent = strikePct.toFixed(0) + '%';
+  $('#stat-spare-pct').textContent  = sparePct.toFixed(0) + '%';
+  $('#stat-open-pct').textContent   = openPct.toFixed(0) + '%';
 }
 
-// ----- Rendering -----
+// ---------- Render ----------
 function markSymbol(fr, idx, isTenth){
   const v = idx===0 ? fr.r1 : idx===1 ? fr.r2 : fr.r3;
   if(v==null) return '';
@@ -110,6 +131,15 @@ function markSymbol(fr, idx, isTenth){
   }
 }
 
+function fmtTime(ms){
+  const s = Math.floor(ms/1000);
+  const h = Math.floor(s/3600);
+  const m = Math.floor((s%3600)/60);
+  const ss= s%60;
+  const two = n=>String(n).padStart(2,'0');
+  return `${two(h)}:${two(m)}:${two(ss)}`;
+}
+
 function render(){
   const host = $('#boards');
   host.innerHTML = '';
@@ -117,18 +147,34 @@ function render(){
   boards.forEach((b, bi)=>{
     computeBoard(b);
 
-    // header
+    // header (date + timer + total)
     const header = document.createElement('div');
     header.className = 'board-header';
-    header.innerHTML = `
+
+    const dateWrap = document.createElement('div');
+    dateWrap.innerHTML = `
       <span class="label">Game Date:</span>
       <input type="date" value="${b.date}" data-bi="${bi}" />
-      <span class="totals">Total: <span id="total-${bi}">${b.total}</span></span>
     `;
-    header.querySelector('input').addEventListener('change',(e)=>{
-      b.date = e.target.value || b.date;
-      computeGlobalStats();
-    });
+    const input = $('input', dateWrap);
+    input.addEventListener('change', (e)=>{ b.date = e.target.value || b.date; });
+
+    const timer = document.createElement('div');
+    timer.className = 'timer';
+    timer.innerHTML = `
+      <span class="display" id="timer-${bi}">${fmtTime(currentElapsed(b))}</span>
+      <button class="tbtn start" data-action="start" data-bi="${bi}">Start</button>
+      <button class="tbtn pause" data-action="pause" data-bi="${bi}">Pause</button>
+      <button class="tbtn stop"  data-action="stop"  data-bi="${bi}">Stop</button>
+    `;
+
+    const totals = document.createElement('div');
+    totals.className = 'totals';
+    totals.innerHTML = `Total: <span id="total-${bi}">${b.total}</span>`;
+
+    header.appendChild(dateWrap);
+    header.appendChild(timer);
+    header.appendChild(totals);
 
     // table
     const table = document.createElement('table');
@@ -162,7 +208,7 @@ function render(){
     boardEl.appendChild(table);
     host.appendChild(boardEl);
 
-    // minis
+    // Minis
     const framesEls = $$('.frame', table);
     framesEls.forEach((frameEl)=>{
       const fi = +frameEl.dataset.fi;
@@ -195,13 +241,24 @@ function render(){
     b.frames.forEach((fr, i)=>{ $(`#cum-${bi}-${i}`).textContent = fr.cumul; });
     $(`#grand-${bi}`).textContent = b.total;
     $(`#total-${bi}`).textContent = b.total;
+
+    // attach timer controls
+    header.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button.tbtn');
+      if(!btn) return;
+      const i = +btn.dataset.bi;
+      const action = btn.dataset.action;
+      if(action==='start') startTimer(boards[i]);
+      if(action==='pause') pauseTimer(boards[i]);
+      if(action==='stop')  stopTimer(boards[i]);
+      paintTimer(i);
+    });
   });
 
-  // After all boards render, recompute and paint global stats
   computeGlobalStats();
 }
 
-// ----- Edits -----
+// ---------- Edits ----------
 function maxFor(bi, fi, ri){
   const fr = boards[bi].frames[fi];
   if(fi<9){
@@ -273,7 +330,39 @@ function autoAdvance(){
   render();
 }
 
-// ----- Events -----
+// ---------- Timer logic ----------
+function currentElapsed(b){
+  if(!b.timer.running) return b.timer.elapsedMs;
+  return b.timer.elapsedMs + (Date.now() - (b.timer.lastStart||Date.now()));
+}
+function startTimer(b){
+  if(b.timer.running) return;
+  b.timer.running = true;
+  b.timer.lastStart = Date.now();
+}
+function pauseTimer(b){
+  if(!b.timer.running) return;
+  b.timer.elapsedMs = currentElapsed(b);
+  b.timer.running = false;
+  b.timer.lastStart = null;
+}
+function stopTimer(b){
+  b.timer.running = false;
+  b.timer.elapsedMs = 0;
+  b.timer.lastStart = null;
+}
+function paintTimer(bi){
+  const b = boards[bi];
+  const el = $(`#timer-${bi}`);
+  if(el) el.textContent = fmtTime(currentElapsed(b));
+}
+
+// tick all timers once per second
+setInterval(()=>{
+  boards.forEach((_,i)=>paintTimer(i));
+}, 1000);
+
+// ---------- Events ----------
 $('#keypad').addEventListener('click', (e)=>{
   const btn = e.target.closest('button[data-k]');
   if(!btn) return;
@@ -282,12 +371,11 @@ $('#keypad').addEventListener('click', (e)=>{
 
 $('#btnAddGame').addEventListener('click', ()=>{
   boards.push(emptyBoard());
-  // focus the new board's first mini
   active = { b: boards.length-1, f:0, r:0 };
   render();
 });
 
-// ----- Boot -----
+// ---------- Boot ----------
 window.addEventListener('DOMContentLoaded', ()=>{
   render();
 });
