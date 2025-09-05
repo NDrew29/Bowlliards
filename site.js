@@ -236,26 +236,26 @@ function initGhost(){
   const ratingBands = {
     5:  [
       {min:  0, max:  8,  rating:1, label:'1 / D / novice'},
-      {min:  9, max: 14,  rating:2, label:'2 / C-'},
-      {min: 15, max: 19,  rating:3, label:'3 / C'},
-      {min: 20, max: 23,  rating:4, label:'4 / B-'},
+      {min:  9, max: 14,  rating:2, label:'2 / C- novice'},
+      {min: 15, max: 19,  rating:3, label:'3 / C novice'},
+      {min: 20, max: 23,  rating:4, label:'4 / B- novice'},
       {min: 24, max: 27,  rating:5, label:'5 / C / intermediate'},
-      {min: 28, max: 31,  rating:6, label:'6'},
-      {min: 32, max: 35,  rating:7, label:'7'},
-      {min: 36, max: 39,  rating:8, label:'8'},
-      {min: 40, max: 44,  rating:9, label:'9'},
+      {min: 28, max: 31,  rating:6, label:'6 intermediate'},
+      {min: 32, max: 35,  rating:7, label:'7 intermediate'},
+      {min: 36, max: 39,  rating:8, label:'8 intermediate'},
+      {min: 40, max: 44,  rating:9, label:'9 intermediate'},
       {min: 45, max: 50,  rating:10,label:'10 / A / superior'}
     ],
     10: [
       {min:  0, max: 16,  rating:1, label:'1 / D / novice'},
-      {min: 17, max: 28,  rating:2, label:'2'},
-      {min: 29, max: 38,  rating:3, label:'3'},
-      {min: 39, max: 46,  rating:4, label:'4'},
+      {min: 17, max: 28,  rating:2, label:'2 novice'},
+      {min: 29, max: 38,  rating:3, label:'3 novice'},
+      {min: 39, max: 46,  rating:4, label:'4 novice'},
       {min: 47, max: 54,  rating:5, label:'5 / C / intermediate'},
-      {min: 55, max: 62,  rating:6, label:'6'},
-      {min: 63, max: 70,  rating:7, label:'7'},
-      {min: 71, max: 78,  rating:8, label:'8'},
-      {min: 79, max: 88,  rating:9, label:'9'},
+      {min: 55, max: 62,  rating:6, label:'6 intermediate'},
+      {min: 63, max: 70,  rating:7, label:'7 intermediate'},
+      {min: 71, max: 78,  rating:8, label:'8 intermediate'},
+      {min: 79, max: 88,  rating:9, label:'9 intermediate'},
       {min: 89, max:100,  rating:10,label:'10 / A / superior'}
     ]
   };
