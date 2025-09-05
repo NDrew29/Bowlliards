@@ -510,6 +510,28 @@ function initRDS(){
     session.attempts = [null,null,null];
   }
 
+  // If first two attempts are runs (✅✅), skip the 3rd and move on immediately.
+function earlyAdvanceIfEligible() {
+  // Only auto-advance when the first two attempts are both runs
+  if (session.attempts[0] === true && session.attempts[1] === true) {
+    // Log this partial set as an advance (3rd remains null intentionally)
+    const result = 'advance';
+    session.log.push({
+      level: session.level,
+      attempts: [...session.attempts], // e.g., [true, true, null]
+      result
+    });
+    // Move up a level and reset attempts
+    session.level = Math.min(16, session.level + 1);
+    session.attempts = [null, null, null];
+    // Optional: show a brief status cue until next paint
+    $('#rStatus').textContent = 'Auto-advance (2 runs in a row)';
+    return true;
+  }
+  return false;
+}
+
+
   function renderHeader(){
     const info = levelInfo[session.level];
     elLevel.textContent = String(session.level);
@@ -600,23 +622,36 @@ function initRDS(){
   });
 
   // Attempts: Run / Fail
-  elAttemptsBody.addEventListener('click', e=>{
-    const run = e.target.closest('button[data-run]');
-    const fail = e.target.closest('button[data-fail]');
-    if(!run && !fail) return;
-    const i = +(run?.dataset.run ?? fail?.dataset.fail);
-    session.attempts[i] = !!run;
-    const res = resolveProgress();
+elAttemptsBody.addEventListener('click', e=>{
+  const run = e.target.closest('button[data-run]');
+  const fail = e.target.closest('button[data-fail]');
+  if(!run && !fail) return;
+
+  const i = +(run?.dataset.run ?? fail?.dataset.fail);
+  session.attempts[i] = !!run;  // true for Run, false for Fail
+
+  // 1) Try early auto-advance if first two are runs
+  //    (Only possible right after attempt #2 is entered.)
+  if (i === 1 && earlyAdvanceIfEligible()) {
     saveTemp();
-    renderAttempts();
-    if(res){
-      applyProgress(res);
-      saveTemp();
-      paintAll();
-    }else{
-      paintAll();
-    }
-  });
+    paintAll();       // full repaint (new level, cleared attempts, log updated)
+    return;
+  }
+
+  // 2) Otherwise, use the normal 3-attempt resolution
+  const res = resolveProgress();
+  saveTemp();
+  renderAttempts();
+
+  if (res) {
+    applyProgress(res);
+    saveTemp();
+    paintAll();
+  } else {
+    paintAll();
+  }
+});
+
 
   // Tick timer
   setInterval(()=>{ if(session.timer.running){ paintTimer(); saveTemp(); } }, 1000);
