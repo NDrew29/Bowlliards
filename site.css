@@ -1,61 +1,47 @@
-/* Light look (matches your mockup) */
-
 :root{
   --text:#333; --bg:#fafafa; --cell:#fff; --head:#f5f5f5; --border:#ddd;
   --hi:#fff8dc; --green:#6cba46; --green-d:#5ea53a; --blue:#4287f5; --orange:#f5a142; --red:#e74c3c;
 }
-
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:system-ui,Arial,sans-serif;padding:16px}
-header h1{margin-bottom:16px;font-size:1.8rem}
+header{display:flex;align-items:center;gap:16px}
+header h1{flex:1;font-size:1.8rem;margin:0 0 12px}
+.subtitle{color:#666}
+.back-link{border:1px solid var(--border);background:var(--cell);padding:6px 10px;border-radius:4px;text-decoration:none;color:inherit}
 
-/* Stats cards */
-.stats-cards{
-  display:grid;
-  grid-template-columns: repeat(4, minmax(160px, 1fr));
-  gap:12px;
-  margin-bottom:16px;
-}
-.stats-cards .card{
-  background:var(--cell);
-  border:1px solid var(--border);
-  border-radius:8px;
-  padding:12px;
-  display:flex;flex-direction:column;gap:6px;
-}
+/* Home */
+.home-header{display:block;text-align:center}
+.home-main{display:grid;grid-template-columns:repeat(auto-fit, minmax(240px,1fr));gap:16px;margin-top:16px}
+.app-card{display:flex;flex-direction:column;gap:8px;background:var(--cell);border:1px solid var(--border);border-radius:10px;padding:16px;text-decoration:none;color:inherit}
+.app-card .icon{font-size:2rem}
+.app-card .cta{margin-top:auto;color:#111;opacity:.6}
+.app-card:hover{box-shadow:0 4px 18px rgba(0,0,0,.08)}
+.home-footer{margin-top:18px;text-align:center;color:#666}
+
+/* Stats cards (Bowlliards) */
+.stats-cards{display:grid;grid-template-columns:repeat(4, minmax(160px,1fr));gap:12px;margin:12px 0 16px}
+.stats-cards .card{background:var(--cell);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px}
 .stats-cards .label{color:#666;font-size:.9rem}
 .stats-cards .value{font-size:1.6rem;font-weight:800}
 
-/* Board header */
+/* Board header & timer (Bowlliards) */
 .board{border-top:1px solid #e8e8e8;padding-top:12px;margin-bottom:20px}
-.board-header{
-  display:flex;align-items:center;gap:12px;margin:6px 0 10px;flex-wrap:wrap;
-}
+.board-header{display:flex;align-items:center;gap:12px;margin:6px 0 10px;flex-wrap:wrap}
 .board-header .label{font-weight:600}
 .board-header input[type="date"]{padding:6px 8px;border:1px solid var(--border);border-radius:4px}
 .board-header .totals{margin-left:auto;font-weight:700}
-
-/* Timer */
-.timer{
-  display:flex;align-items:center;gap:8px;margin-left:auto;
-}
-.timer .display{
-  min-width:88px;text-align:center;background:var(--cell);border:1px solid var(--border);
-  border-radius:4px;padding:6px 8px;font-variant-numeric:tabular-nums;font-weight:700;
-}
-.timer .tbtn{
-  border:1px solid var(--border);background:var(--cell);padding:6px 10px;border-radius:4px;cursor:pointer;
-}
+.timer{display:flex;align-items:center;gap:8px;margin-left:auto}
+.display{min-width:88px;text-align:center;background:var(--cell);border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-variant-numeric:tabular-nums;font-weight:700}
+.tbtn{border:1px solid var(--border);background:var(--cell);padding:6px 10px;border-radius:4px;cursor:pointer}
 .tbtn.start{border-color:var(--green);color:var(--green)}
 .tbtn.pause{border-color:var(--orange);color:var(--orange)}
 .tbtn.stop{border-color:var(--red);color:var(--red)}
 
-/* Frames table */
+/* Frames table (Bowlliards & Ghost table) */
 .frames-table{width:100%;border-collapse:collapse;margin-bottom:8px}
 .frames-table th,.frames-table td{border:1px solid var(--border);background:var(--cell);padding:8px;text-align:center}
 .frames-table th{background:var(--head);font-weight:normal}
 .totals-col{background:var(--head)}
-
 .frame{display:grid;grid-template-columns:1fr 1fr;gap:0;width:72px;margin:0 auto}
 .frame.tenth{grid-template-columns:1fr 1fr 1fr}
 .mini{border-right:1px solid var(--border);border-bottom:1px solid var(--border);height:34px;display:grid;place-items:center;font-weight:600;cursor:pointer}
@@ -64,7 +50,7 @@ header h1{margin-bottom:16px;font-size:1.8rem}
 .mini.selected{background:var(--hi)}
 .mini.disabled{color:#aaa;cursor:default}
 
-/* Keypad */
+/* Keypad (Bowlliards) */
 .keypad{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0 20px}
 .keypad button{width:56px;height:40px;border:none;border-radius:4px;background:var(--green);color:#fff;font-weight:700;cursor:pointer}
 .keypad button:hover{background:var(--green-d)}
@@ -72,11 +58,21 @@ header h1{margin-bottom:16px;font-size:1.8rem}
 .keypad .blue{background:var(--blue)}
 .keypad .orange{background:var(--orange)}
 .keypad .red{background:var(--red)}
-
 .bottom-actions{display:flex;justify-content:flex-end}
 .add-btn{background:var(--green);color:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer}
 .add-btn:hover{background:var(--green-d)}
 
+/* Ghost 9-Ball */
+.ghost-wrap{display:block;gap:16px}
+.ghost-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 0}
+.ghost-table td input[type="number"]{width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:4px}
+.ghost-table td input[type="checkbox"]{transform:scale(1.2)}
+.ghost-summary{display:flex;gap:24px;align-items:center}
+.ghost-history{margin-top:16px}
+.ghost-history-list{display:grid;grid-template-columns:repeat(auto-fit, minmax(260px,1fr));gap:10px}
+.ghost-card{background:var(--cell);border:1px solid var(--border);border-radius:8px;padding:10px}
+.ghost-card h3{font-size:1rem;margin-bottom:6px}
+
 @media (max-width: 880px){
-  .stats-cards{grid-template-columns: repeat(2, minmax(160px, 1fr));}
+  .stats-cards{grid-template-columns:repeat(2, minmax(160px,1fr))}
 }
