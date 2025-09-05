@@ -2,78 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Bowlliards Tracker</title>
+  <title>Pool Training Hub</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="site.css" />
 </head>
-<body>
-  <header>
-    <h1>Bowlliards Tracker</h1>
+<body data-page="home">
+  <header class="home-header">
+    <h1>Pool Training Hub</h1>
+    <p class="subtitle">Choose a game mode to track and improve</p>
   </header>
 
-  <main>
-    <!-- GLOBAL STATS (all games on the page) -->
-    <section id="stats" class="stats-cards" aria-label="Overall statistics">
-      <div class="card">
-        <div class="label">Avg Shot 1</div>
-        <div id="stat-avg-r1" class="value">0.00</div>
-      </div>
-      <div class="card">
-        <div class="label">Avg Shot 2</div>
-        <div id="stat-avg-r2" class="value">0.00</div>
-      </div>
-      <div class="card">
-        <div class="label">Avg Balls / Frame</div>
-        <div id="stat-avg-frame" class="value">0.00</div>
-      </div>
-      <div class="card">
-        <div class="label">Avg Balls / Game</div>
-        <div id="stat-avg-game" class="value">0.00</div>
-      </div>
-      <div class="card">
-        <div class="label">Total Balls Made</div>
-        <div id="stat-total-balls" class="value">0</div>
-      </div>
-      <div class="card">
-        <div class="label">Strike %</div>
-        <div id="stat-strike-pct" class="value">0%</div>
-      </div>
-      <div class="card">
-        <div class="label">Spare %</div>
-        <div id="stat-spare-pct" class="value">0%</div>
-      </div>
-      <div class="card">
-        <div class="label">Open Frame %</div>
-        <div id="stat-open-pct" class="value">0%</div>
-      </div>
-    </section>
+  <main class="home-main">
+    <a class="app-card" href="bowlliards.html">
+      <div class="icon">🎳</div>
+      <h2>Bowlliards</h2>
+      <p>Score 10 frames bowling-style with X and /.</p>
+      <span class="cta">Open →</span>
+    </a>
 
-    <!-- All game boards get inserted here -->
-    <div id="boards"></div>
-
-    <!-- Keypad (shared) -->
-    <div id="keypad" class="keypad">
-      <button data-k="0">0</button>
-      <button data-k="1">1</button>
-      <button data-k="2">2</button>
-      <button data-k="3">3</button>
-      <button data-k="4">4</button>
-      <button data-k="5">5</button>
-      <button data-k="6">6</button>
-      <button data-k="7">7</button>
-      <button data-k="8">8</button>
-      <button data-k="9">9</button>
-      <button data-k="10">10</button>
-      <button data-k="X" class="wide blue">X</button>
-      <button data-k="/" class="wide orange">/</button>
-      <button data-k="CLR" class="wide red">Clear</button>
-    </div>
-
-    <!-- Add board -->
-    <div class="bottom-actions">
-      <button id="btnAddGame" class="add-btn">Add another Game</button>
-    </div>
+    <a class="app-card" href="ghost9.html">
+      <div class="icon">👻 ⑨</div>
+      <h2>Ghost 9-Ball</h2>
+      <p>Run 5 or 10 racks vs. the Ghost. +1 if 9-ball made.</p>
+      <span class="cta">Open →</span>
+    </a>
   </main>
+
+  <footer class="home-footer">
+    <small>Tip: each mode saves your progress locally in this browser.</small>
+  </footer>
 
   <script src="site.js"></script>
 </body>
