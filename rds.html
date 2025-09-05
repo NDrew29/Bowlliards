@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>RDS — Runout Drill System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="site.css" />
+</head>
+<body data-page="rds">
+  <header>
+    <h1>Runout Drill System (RDS)</h1>
+    <a href="index.html" class="back-link">← Home</a>
+  </header>
+
+  <main class="rds-wrap">
+    <!-- Controls -->
+    <section class="rds-controls">
+      <label>Session Date <input type="date" id="rDate"></label>
+
+      <label>Start Level
+        <select id="rStart">
+          <!-- JS fills 1..16 and selects current -->
+        </select>
+      </label>
+
+      <div class="timer">
+        <span id="rTimer" class="display">00:00:00</span>
+        <button class="tbtn start" data-act="start">Start</button>
+        <button class="tbtn pause" data-act="pause">Pause</button>
+        <button class="tbtn stop"  data-act="stop">Stop</button>
+      </div>
+
+      <div class="rds-actions">
+        <button id="rNewSession" class="add-btn">New Session</button>
+        <button id="rSaveSession" class="add-btn">Save Session</button>
+      </div>
+    </section>
+
+    <!-- Current Level -->
+    <section class="rds-level">
+      <div class="rds-level-head">
+        <div><strong>Current Level:</strong> <span id="rLevel">1</span></div>
+        <div><strong>Rating:</strong> <span id="rLevelRating">—</span></div>
+      </div>
+      <p id="rLevelDesc" class="subtitle"></p>
+
+      <table class="frames-table rds-table">
+        <thead>
+          <tr>
+            <th>Attempt</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="rAttempts">
+          <!-- three rows with Run / Fail buttons -->
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2" class="rds-next">
+              <div><strong>Progress Rule:</strong> 2 of 3 = advance • 1 of 3 = stay • 0 of 3 = drop</div>
+              <div><strong>Status:</strong> <span id="rStatus">Waiting for results…</span></div>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </section>
+
+    <!-- Session Log -->
+    <section class="rds-log">
+      <h2>Session Log</h2>
+      <div id="rLog" class="rds-log-list"></div>
+    </section>
+
+    <!-- History -->
+    <section class="rds-history">
+      <h2>Saved Sessions</h2>
+      <div id="rHistory" class="rds-history-list"></div>
+    </section>
+  </main>
+
+  <script src="site.js"></script>
+</body>
+</html>
