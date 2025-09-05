@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ghost 9-Ball — Playing the Ghost Drill</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="site.css" />
+</head>
+<body data-page="ghost9">
+  <header>
+    <h1>Ghost 9-Ball — Evaluation Drill</h1>
+    <a href="index.html" class="back-link">← Home</a>
+  </header>
+
+  <main class="ghost-wrap">
+    <!-- Controls -->
+    <section class="ghost-controls">
+      <label>Session Date <input type="date" id="gDate"></label>
+      <label>Racks
+        <select id="gRackCount">
+          <option value="5">5</option>
+          <option value="10">10</option>
+        </select>
+      </label>
+      <div class="ghost-timer">
+        <span id="gTimer" class="display">00:00:00</span>
+        <button class="tbtn start" data-act="start">Start</button>
+        <button class="tbtn pause" data-act="pause">Pause</button>
+        <button class="tbtn stop"  data-act="stop">Stop</button>
+      </div>
+      <button id="gNewSession" class="add-btn">New Session</button>
+    </section>
+
+    <!-- Racks table -->
+    <table class="frames-table ghost-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Balls Made (0–9)</th>
+          <th>9-Ball Made?</th>
+          <th>Rack Score</th>
+        </tr>
+      </thead>
+      <tbody id="gBody"></tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" class="ghost-summary">
+            <div><strong>Total Score:</strong> <span id="gTotal">0</span></div>
+            <div><strong>Rating:</strong> <span id="gRating">—</span></div>
+          </td>
+          <td>
+            <button id="gSave" class="add-btn">Save Session</button>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- History -->
+    <section class="ghost-history">
+      <h2>Rating History</h2>
+      <div id="gHistory" class="ghost-history-list"></div>
+    </section>
+  </main>
+
+  <script src="site.js"></script>
+</body>
+</html>
