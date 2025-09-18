@@ -72,6 +72,9 @@ header h1{flex:1;font-size:1.8rem;margin:0 0 12px}
 .ghost-history-list{display:grid;grid-template-columns:repeat(auto-fit, minmax(260px,1fr));gap:10px}
 .ghost-card{background:var(--cell);border:1px solid var(--border);border-radius:8px;padding:10px}
 .ghost-card h3{font-size:1rem;margin-bottom:6px}
+/* Ghost KPI row can wrap on small screens */
+.ghost-stats { margin-top: 6px; }
+.ghost-table td input[type="number"]{ width:88px; } /* slightly wider to fit new fields */
 
 /* RDS */
 .rds-wrap{display:block;gap:16px}
