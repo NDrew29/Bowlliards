@@ -1,3 +1,236 @@
+site.js
+
+/* Shared JS for: Home, Bowlliards, Ghost 9-Ball, RDS */
+
+const $  = (q,root=document)=>root.querySelector(q);
+const $$ = (q,root=document)=>Array.from(root.querySelectorAll(q));
+const todayISO = ()=>{const d=new Date(),o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);};
+
+window.addEventListener('DOMContentLoaded', () => {
+  const page = document.body.dataset.page;
+  if (page === 'bowlliards') initBowlliards();
+  else if (page === 'ghost9') initGhost();
+  else if (page === 'rds') initRDS();
+  else initHome();
+});
+
+/* ========= Home ========= */
+function initHome(){ /* links only */ }
+
+/* ========= Bowlliards ========= */
+/* persistent multi-board app with KPIs & per-board timer */
+function initBowlliards(){
+  const LS_KEY = 'bowlliards.multi.v2';
+  function emptyFrame(){ return { r1:null, r2:null, r3:null, cumul:0 }; }
+  function emptyTimer(){ return { elapsedMs: 0, running: false, lastStart: null }; }
+  function emptyBoard(){ return { date: todayISO(), frames: Array.from({length:10}, emptyFrame), total: 0, timer: emptyTimer() }; }
+
+  let boards = [emptyBoard()];
+  let active = { b:0, f:0, r:0 };
+
+  function normalizeBoard(b){
+    if(!b) return emptyBoard();
+    b.date   = b.date || todayISO();
+    b.frames = Array.isArray(b.frames)&&b.frames.length===10
+      ? b.frames.map(fr=>({r1:fr?.r1??null,r2:fr?.r2??null,r3:fr?.r3??null,cumul:fr?.cumul??0}))
+      : Array.from({length:10}, emptyFrame);
+    b.total  = b.total ?? 0;
+    b.timer  = { elapsedMs:Number(b?.timer?.elapsedMs)||0, running:!!b?.timer?.running, lastStart:b?.timer?.lastStart ?? null };
+    return b;
+  }
+  function saveAll(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({boards,active})); }catch{} }
+  function loadAll(){
+    try{
+      const raw = localStorage.getItem(LS_KEY); if(!raw) return;
+      const parsed = JSON.parse(raw);
+      const loadedBoards = Array.isArray(parsed?.boards) ? parsed.boards.map(normalizeBoard) : null;
+      if(loadedBoards && loadedBoards.length) boards = loadedBoards;
+      if(parsed?.active){ active = { b:Math.min(parsed.active.b, boards.length-1), f:Math.min(parsed.active.f??0,9), r:Math.min(parsed.active.r??0,2) }; }
+    }catch{}
+  }
+
+  function rollsFor(frames){
+    const rolls=[];
+    for(let f=0;f<9;f++){
+      const {r1,r2} = frames[f];
+      if(r1==null) break;
+      if(r1===10) rolls.push(10);
+      else{ rolls.push(r1); if(r2!=null) rolls.push(r2); }
+    }
+    const F=frames[9]; if(F.r1!=null){ rolls.push(F.r1); if(F.r2!=null) rolls.push(F.r2); if(F.r3!=null) rolls.push(F.r3); }
+    return rolls;
+  }
+  function computeBoard(b){
+    const frames=b.frames, rolls=rollsFor(frames); let i=0, cum=0;
+    for(let f=0;f<10;f++){
+      if(i>=rolls.length){ frames[f].cumul=cum; continue; }
+      const r1=rolls[i]; let score=0;
+      if(f<9){
+        if(r1===10){ score = 10 + (rolls[i+1]||0) + (rolls[i+2]||0); i+=1; }
+        else{ const r2=rolls[i+1]||0, sum=r1+r2; score = (sum===10)? 10 + (rolls[i+2]||0) : sum; i+=2; }
+      }else{
+        const r2=rolls[i+1]||0, r3=rolls[i+2]||0; score=r1+r2+r3; i=rolls.length;
+      }
+      cum+=score; frames[f].cumul=cum;
+    }
+    b.total=cum;
+  }
+  function computeGlobalStats(){
+    let r1Sum=0,r1Cnt=0,r2Sum=0,r2Cnt=0,frameSum=0,frameCnt=0,gameSum=0,gameCnt=0,totalBalls=0;
+    let startedFrames=0,strikeFrames=0,spareFrames=0,openFrames=0;
+    boards.forEach(b=>{
+      let gameRaw=0, any=false;
+      b.frames.forEach((fr,fi)=>{
+        const started=fr.r1!=null;
+        if(started){
+          startedFrames++; any=true;
+          const raw=(fr.r1||0)+(fr.r2||0)+(fi===9?(fr.r3||0):0);
+          frameSum+=raw; frameCnt++; totalBalls+=raw;
+          if(fr.r1===10) strikeFrames++;
+          else if((fr.r1||0)+(fr.r2||0)===10) spareFrames++;
+          else openFrames++;
+        }
+        if(fr.r1!=null){ r1Cnt++; r1Sum+=fr.r1; }
+        if(fr.r2!=null){ r2Cnt++; r2Sum+=fr.r2; }
+        gameRaw += (fr.r1||0)+(fr.r2||0)+(fi===9?(fr.r3||0):0);
+      });
+      if(any){ gameCnt++; gameSum+=gameRaw; }
+    });
+    const avgR1=r1Cnt?(r1Sum/r1Cnt):0, avgR2=r2Cnt?(r2Sum/r2Cnt):0, avgF=frameCnt?(frameSum/frameCnt):0, avgG=gameCnt?(gameSum/gameCnt):0;
+    const strikePct=startedFrames?(100*strikeFrames/startedFrames):0, sparePct=startedFrames?(100*spareFrames/startedFrames):0, openPct=startedFrames?(100*openFrames/startedFrames):0;
+    $('#stat-avg-r1').textContent=avgR1.toFixed(2);
+    $('#stat-avg-r2').textContent=avgR2.toFixed(2);
+    $('#stat-avg-frame').textContent=avgF.toFixed(2);
+    $('#stat-avg-game').textContent=avgG.toFixed(2);
+    $('#stat-total-balls').textContent=String(totalBalls);
+    $('#stat-strike-pct').textContent=${strikePct.toFixed(0)}%;
+    $('#stat-spare-pct').textContent =${sparePct.toFixed(0)}%;
+    $('#stat-open-pct').textContent  =${openPct.toFixed(0)}%;
+  }
+  function markSymbol(fr, idx, tenth){
+    const v = idx===0?fr.r1:idx===1?fr.r2:fr.r3;
+    if(v==null) return '';
+    if(!tenth){
+      if(idx===0&&v===10) return 'X';
+      if(idx===1&&(fr.r1||0)+(fr.r2||0)===10) return '/';
+      return String(v);
+    }else{
+      if(idx===0) return v===10?'X':String(v);
+      if(idx===1){ if(fr.r1===10) return v===10?'X':String(v); return (fr.r1||0)+(fr.r2||0)===10?'/':String(v); }
+      if(fr.r1===10){ if(fr.r2===10) return v===10?'X':String(v); return (fr.r2||0)+(fr.r3||0)===10?'/':String(v); }
+      return (fr.r1||0)+(fr.r2||0)===10 ? (v===10?'X':String(v)) : '';
+    }
+  }
+  const two=n=>String(n).padStart(2,'0');
+  const fmtTime=ms=>{const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;return ${two(h)}:${two(m)}:${two(ss)}};
+  function currentElapsed(b){ return b.timer.running ? b.timer.elapsedMs + (Date.now()-(b.timer.lastStart||Date.now())) : b.timer.elapsedMs; }
+  function startTimer(b){ if(b.timer.running) return; b.timer.running=true; b.timer.lastStart=Date.now(); }
+  function pauseTimer(b){ if(!b.timer.running) return; b.timer.elapsedMs=currentElapsed(b); b.timer.running=false; b.timer.lastStart=null; }
+  function stopTimer (b){ b.timer.running=false; b.timer.elapsedMs=0; b.timer.lastStart=null; }
+  function paintTimer(bi){ const b=boards[bi]; const el=$(#timer-${bi}); if(el) el.textContent=fmtTime(currentElapsed(b)); }
+
+  function render(){
+    const host = $('#boards'); host.innerHTML='';
+    boards.forEach((b,bi)=>{
+      computeBoard(b);
+
+      const header=document.createElement('div'); header.className='board-header';
+      const dateWrap=document.createElement('div'); dateWrap.innerHTML=<span class="label">Game Date:</span><input type="date" value="${b.date}">;
+      $('input',dateWrap).addEventListener('change',e=>{ b.date=e.target.value||b.date; saveAll(); computeGlobalStats(); });
+      const timer=document.createElement('div'); timer.className='timer';
+      timer.innerHTML=<span class="display" id="timer-${bi}">${fmtTime(currentElapsed(b))}</span>
+        <button class="tbtn start" data-a="start">Start</button>
+        <button class="tbtn pause" data-a="pause">Pause</button>
+        <button class="tbtn stop"  data-a="stop">Stop</button>;
+      const totals=document.createElement('div'); totals.className='totals'; totals.innerHTML=Total: <span id="total-${bi}">${b.total}</span>;
+      header.append(dateWrap,timer,totals);
+
+      const table=document.createElement('table'); table.className='frames-table';
+      table.innerHTML=<thead><tr><th></th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>Max Possible</th><th>Total</th></tr></thead>
+        <tbody>
+          <tr><td>Rolls</td>
+            ${Array.from({length:10},(_,i)=><td><div class="frame ${i===9?'tenth':''}" data-fi="${i}"></div></td>).join('')}
+            <td rowspan="2" class="totals-col"><strong>300</strong></td>
+            <td rowspan="2" class="totals-col"><div id="grand-${bi}">${b.total}</div></td>
+          </tr>
+          <tr><td>0</td>${Array.from({length:10},(_,i)=><td id="cum-${bi}-${i}">${b.frames[i].cumul}</td>).join('')}</tr>
+        </tbody>;
+      const boardEl=document.createElement('section'); boardEl.className='board'; boardEl.append(header,table); host.appendChild(boardEl);
+
+      // minis
+      $$('.frame',table).forEach(fe=>{
+        const fi=+fe.dataset.fi; const fr=b.frames[fi]; fe.innerHTML='';
+        const cnt=fi===9?3:2;
+        for(let r=0;r<cnt;r++){
+          const mini=document.createElement('div'); mini.className='mini'; mini.textContent=markSymbol(fr,r,fi===9);
+          if(fi===9&&r===2){ const ok=fr.r1===10||((fr.r1||0)+(fr.r2||0)===10); if(!ok) mini.classList.add('disabled'); }
+          if(active.b===bi&&active.f===fi&&active.r===r) mini.classList.add('selected');
+          mini.addEventListener('click', ()=>{ active={b:bi,f:fi,r:r}; saveAll(); render(); mini.scrollIntoView({block:'nearest',inline:'center'}); });
+          fe.appendChild(mini);
+        }
+      });
+
+      // fill totals
+      b.frames.forEach((fr,i)=>{ $(#cum-${bi}-${i}).textContent=fr.cumul; });
+      $(#grand-${bi}).textContent=b.total; $(#total-${bi}).textContent=b.total;
+
+      // timer buttons
+      header.addEventListener('click', e=>{
+        const btn=e.target.closest('button.tbtn'); if(!btn) return;
+        if(btn.dataset.a==='start') startTimer(b);
+        if(btn.dataset.a==='pause') pauseTimer(b);
+        if(btn.dataset.a==='stop')  stopTimer(b);
+        saveAll(); paintTimer(bi);
+      });
+    });
+    computeGlobalStats();
+  }
+
+  // keypad & edit handlers
+  function maxFor(fi,ri){
+    const fr=boards[active.b].frames[fi];
+    if(fi<9){ return ri===0?10:Math.max(0,10-(fr.r1||0)); }
+    if(ri===0) return 10;
+    if(ri===1) return fr.r1===10?10:Math.max(0,10-(fr.r1||0));
+    return fr.r1===10 ? (fr.r2===10?10:Math.max(0,10-(fr.r2||0))) : (((fr.r1||0)+(fr.r2||0)===10)?10:0);
+  }
+  function setValue(v){
+    const bi=active.b, fi=active.f, ri=active.r, fr=boards[bi].frames[fi];
+    if(v==='CLR'){ if(ri===0) fr.r1=null; if(ri===1) fr.r2=null; if(ri===2) fr.r3=null; computeBoard(boards[bi]); saveAll(); render(); return; }
+    if(v==='X') v=10;
+    if(v==='/'){
+      if(fi<9 && ri===1 && fr.r1!=null && fr.r1<10) fr.r2=10-fr.r1;
+      else if(fi===9){
+        if(ri===1 && fr.r1!=null && fr.r1<10) fr.r2=10-fr.r1;
+        else if(ri===2 && fr.r1===10 && fr.r2!=null && fr.r2<10) fr.r3=10-fr.r2;
+      }
+      computeBoard(boards[bi]); saveAll(); render(); autoAdvance(); return;
+    }
+    const n=Number(v); if(Number.isNaN(n)) return;
+    const max=maxFor(fi,ri); const val=Math.min(Math.max(0,n),max);
+    if(ri===0){ fr.r1=val; if(fi<9 && val===10) fr.r2=null; } else if(ri===1){ fr.r2=val; } else { fr.r3=val; }
+    computeBoard(boards[bi]); saveAll(); render(); autoAdvance();
+  }
+  function autoAdvance(){
+    const bi=active.b, fi=active.f, ri=active.r, fr=boards[bi].frames[fi];
+    if(fi<9){ active = (ri===0) ? (fr.r1===10? {b:bi,f:fi+1,r:0}:{b:bi,f:fi,r:1}) : {b:bi,f:fi+1,r:0}; }
+    else{
+      if(ri===0) active={b:bi,f:fi,r:1};
+      else if(ri===1){ const ok=fr.r1===10||((fr.r1||0)+(fr.r2||0)===10); active={b:bi,f:fi,r:ok?2:1}; }
+      else active={b:bi,f:fi,r:2};
+    }
+    saveAll(); render();
+  }
+
+  $('#keypad').addEventListener('click', e=>{ const b=e.target.closest('button[data-k]'); if(!b) return; setValue(b.dataset.k); });
+  $('#btnAddGame').addEventListener('click', ()=>{ boards.push(emptyBoard()); active={b:boards.length-1,f:0,r:0}; saveAll(); render(); });
+
+  // timer ticking & autosave
+  setInterval(()=>{ let run=false; boards.forEach((b,i)=>{ if(b.timer.running) run=true; paintTimer(i); }); if(run) saveAll(); }, 1000);
+
+  loadAll(); render();
+}
+
 /* ========= Ghost 9-Ball ========= */
 function initGhost(){
   const LS_KEY = 'ghost9.sessions.v1';
@@ -31,14 +264,15 @@ function initGhost(){
 
   // New rack model (matches your desired columns)
   function emptyRack(){
-    return {
-      balls: 0,          // user-entered total balls made for the rack (0–9)
-      scratchBreak: false,
-      breakBalls: 0,     // balls pocketed on break (0–9)
-      nineMade: false,   // +1 bonus if true
-      score: 0
-    };
-  }
+  return { 
+    balls: 0,          // balls run
+    nineBonus: false,  // 9-ball made legally
+    nineBreak: false,  // 9-ball made on break
+    breakBalls: 0,     // balls pocketed on break
+    scratch: false,    // scratch on break
+    score: 0
+  };
+}
   function emptySession(n=5){ return {
     date: todayISO(),
     racks: Array.from({length:n}, emptyRack),
@@ -132,15 +366,24 @@ function initGhost(){
   }
 
   function recalc(i){
-    const r = session.racks[i];
-    // sanitize inputs
-    r.balls      = clamp(r.balls, 0, 9);
-    r.breakBalls = clamp(r.breakBalls, 0, 9);
-    // compute & paint
-    r.score = scoreRack(r);
-    $('#gScore-'+i).textContent = String(r.score);
-    compute(); saveSessionTemp();
-  }
+  const r = session.racks[i];
+  r.balls = Math.max(0, Math.min(9, Number(r.balls)||0));
+  
+  // Base balls = legal run
+  let score = r.balls;
+
+  // Apply legal 9-ball bonus only if nineBonus is checked
+  if(r.nineBonus) score += 1;
+
+  // If scratch on break, subtract break balls (they don’t count)
+  if(r.scratch) score -= r.breakBalls;
+
+  // Ensure non-negative
+  r.score = Math.max(0, score);
+
+  $('#gScore-'+i).textContent = String(r.score);
+  compute(); saveSessionTemp();
+}
 
   function wireRows(){
     elBody.addEventListener('input', e=>{
@@ -234,6 +477,263 @@ function initGhost(){
 
   // boot
   loadSessionTemp();
+  paintAll();
+  renderHistory();
+}
+
+/* ========= RDS – Runout Drill System ========= */
+function initRDS(){
+  const LS_HISTORY = 'rds.sessions.v1';
+
+  // Level descriptions & ratings (summary from BU Exam IV – RDS)
+  // Rating label per level (concise)
+  const levelInfo = {
+    1:  { desc: 'Optional: 6 balls, pocket OBs directly with no cue ball.',      rating:'lower novice' },
+    2:  { desc: '6 balls, any order, BIH on every shot.',                        rating:'mid novice' },
+    3:  { desc: '6 balls, any order, 3 extra BIHs.',                             rating:'upper novice' },
+    4:  { desc: '6 balls, any order, 2 extra BIHs.',                             rating:'lower beginner (D-)' },
+    5:  { desc: '6 balls, any order, 1 extra BIH.',                              rating:'mid beginner (D)' },
+    6:  { desc: '7 balls (3 solids, 3 stripes, 8), 8-ball rules, 1 extra BIH.',  rating:'upper beginner (D+)' },
+    7:  { desc: '9 balls, any order, 1 extra BIH.',                              rating:'lower intermediate (C-)' },
+    8:  { desc: '9 balls (4 solids, 4 stripes, 8), 8-ball rules, 1 extra BIH.',  rating:'mid intermediate (C)' },
+    9:  { desc: '15 balls, any order, 2 extra BIHs.',                            rating:'upper intermediate (C+)' },
+    10: { desc: '6 balls, in order (rotation).',                                  rating:'lower advanced (B-)' },
+    11: { desc: '15 balls, any order.',                                           rating:'mid advanced (B)' },
+    12: { desc: '15 balls, 8-ball rules.',                                        rating:'upper advanced (B+)' },
+    13: { desc: '9 balls (4 solids, 4 stripes, 8), 8-ball rules, then remaining in order.', rating:'lower shortstop (A-)' },
+    14: { desc: '9 balls, 9-ball rules. 9 early is a win; credit for all balls.', rating:'upper shortstop (A)' },
+    15: { desc: '15 balls, 8-ball rules, then remaining in order.',               rating:'semipro / pro (A+/AA)' },
+    16: { desc: '15 balls, in order (rotation).',                                 rating:'world class pro (A++/AAA)' }
+  };
+
+  function emptySession(){
+    return {
+      date: todayISO(),
+      level: 1,
+      attempts: [null, null, null], // true=run, false=miss, null=pending
+      log: [], // [{level, attempts:[...], result:'advance|stay|drop'}]
+      timer: { elapsedMs: 0, running: false, lastStart: null }
+    };
+  }
+
+  let session = emptySession();
+  let history = loadHistory();
+
+  // Elements
+  const elDate = $('#rDate');
+  const elStart = $('#rStart');
+  const elLevel = $('#rLevel');
+  const elLevelRating = $('#rLevelRating');
+  const elLevelDesc = $('#rLevelDesc');
+  const elAttemptsBody = $('#rAttempts');
+  const elStatus = $('#rStatus');
+  const elLog = $('#rLog');
+  const elHistory = $('#rHistory');
+  const elTimer = $('#rTimer');
+
+  // Init controls
+  (function fillStartSelect(){
+    elStart.innerHTML = Array.from({length:16},(_,i)=><option value="${i+1}">${i+1}</option>).join('');
+  })();
+
+  // Timer helpers
+  const two = n=>String(n).padStart(2,'0');
+  const fmt = ms=>{ const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60; return ${two(h)}:${two(m)}:${two(ss)}; };
+  const curElapsed = ()=> session.timer.running ? session.timer.elapsedMs + (Date.now()-(session.timer.lastStart||Date.now())) : session.timer.elapsedMs;
+  function start(){ if(session.timer.running) return; session.timer.running=true; session.timer.lastStart=Date.now(); saveTemp(); paintTimer(); }
+  function pause(){ if(!session.timer.running) return; session.timer.elapsedMs=curElapsed(); session.timer.running=false; session.timer.lastStart=null; saveTemp(); paintTimer(); }
+  function stop(){ session.timer.running=false; session.timer.elapsedMs=0; session.timer.lastStart=null; saveTemp(); paintTimer(); }
+  function paintTimer(){ elTimer.textContent = fmt(curElapsed()); }
+
+  // Attempt rendering
+  function renderAttempts(){
+    elAttemptsBody.innerHTML = '';
+    for(let i=0;i<3;i++){
+      const state = session.attempts[i]; // true/false/null
+      const tr = document.createElement('tr');
+      tr.innerHTML = 
+        <td>Attempt ${i+1}</td>
+        <td>
+          <button class="ok" data-run="${i}">Run</button>
+          <button class="bad" data-fail="${i}">Fail</button>
+          <span class="subtitle" style="margin-left:8px">${state===true?'✅ Run':state===false?'❌ Fail':'—'}</span>
+        </td>
+      ;
+      elAttemptsBody.appendChild(tr);
+    }
+  }
+
+  function resolveProgress(){
+    const filled = session.attempts.filter(a=>a!==null).length;
+    if(filled<3){
+      elStatus.textContent = 'Waiting for results…';
+      return null;
+    }
+    const wins = session.attempts.filter(Boolean).length;
+    let result='stay';
+    if(wins>=2) result='advance';
+    if(wins===0) result='drop';
+    elStatus.textContent = result==='advance' ? 'Advance to next level' : result==='drop' ? 'Drop to previous level' : 'Stay on this level';
+    return result;
+  }
+
+  function applyProgress(result){
+    if(!result) return;
+    // Log this set
+    session.log.push({ level: session.level, attempts: [...session.attempts], result });
+    // Move level
+    if(result==='advance') session.level = Math.min(16, session.level+1);
+    else if(result==='drop') session.level = Math.max(1, session.level-1);
+    // Reset attempts
+    session.attempts = [null,null,null];
+  }
+
+  // If first two attempts are runs (✅✅), skip the 3rd and move on immediately.
+function earlyAdvanceIfEligible() {
+  // Only auto-advance when the first two attempts are both runs
+  if (session.attempts[0] === true && session.attempts[1] === true) {
+    // Log this partial set as an advance (3rd remains null intentionally)
+    const result = 'advance';
+    session.log.push({
+      level: session.level,
+      attempts: [...session.attempts], // e.g., [true, true, null]
+      result
+    });
+    // Move up a level and reset attempts
+    session.level = Math.min(16, session.level + 1);
+    session.attempts = [null, null, null];
+    // Optional: show a brief status cue until next paint
+    $('#rStatus').textContent = 'Auto-advance (2 runs in a row)';
+    return true;
+  }
+  return false;
+}
+
+  function renderHeader(){
+    const info = levelInfo[session.level];
+    elLevel.textContent = String(session.level);
+    elLevelRating.textContent = info?.rating || '—';
+    elLevelDesc.textContent = info?.desc || '';
+    elStart.value = String(session.level);
+    elDate.value = session.date;
+  }
+
+  function renderLog(){
+    elLog.innerHTML = '';
+    if(!session.log.length){ elLog.innerHTML = '<p class="subtitle">No attempts logged yet.</p>'; return; }
+    session.log.slice().reverse().forEach(entry=>{
+      const div = document.createElement('div');
+      const icon = entry.result==='advance'?'⬆️':entry.result==='drop'?'⬇️':'➡️';
+      const txt = entry.attempts.map(a=>a===true?'✅':a===false?'❌':'—').join(' ');
+      div.className='rds-card';
+      div.innerHTML = <strong>Level ${entry.level}</strong> — ${icon} ${entry.result}<br/><span class="subtitle">${txt}</span>;
+      elLog.appendChild(div);
+    });
+  }
+
+  function saveHistory(){ localStorage.setItem(LS_HISTORY, JSON.stringify(history)); }
+  function loadHistory(){ try{ return JSON.parse(localStorage.getItem(LS_HISTORY)||'[]'); }catch{ return []; } }
+  function renderHistory(){
+    elHistory.innerHTML = '';
+    if(!history.length){ elHistory.innerHTML='<p class="subtitle">No saved sessions.</p>'; return; }
+    history.forEach((s,idx)=>{
+      const div=document.createElement('div'); div.className='rds-card';
+      const end = s.log.length ? s.log[s.log.length-1].level : s.level;
+      div.innerHTML = 
+        <h3>${s.date}</h3>
+        <div><strong>End Level:</strong> ${end}</div>
+        <div><strong>Rating:</strong> ${levelInfo[end]?.rating || '—'}</div>
+        <div><strong>Attempts:</strong> ${s.log.length}</div>
+        <div style="margin-top:6px;display:flex;gap:8px">
+          <button data-act="load" data-i="${idx}" class="tbtn">Load</button>
+          <button data-act="delete" data-i="${idx}" class="tbtn stop">Delete</button>
+        </div>
+      ;
+      elHistory.appendChild(div);
+    });
+
+    elHistory.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button[data-act]');
+      if(!btn) return;
+      const i = +btn.dataset.i;
+      if(btn.dataset.act==='load'){ session = structuredClone(history[i]); paintAll(); }
+      if(btn.dataset.act==='delete'){ if(confirm('Delete this session?')){ history.splice(i,1); saveHistory(); renderHistory(); } }
+    }, { once: true });
+  }
+
+  // temp persistence for in-progress session
+  function saveTemp(){ sessionStorage.setItem('rds.current', JSON.stringify(session)); }
+  function loadTemp(){ try{ const s=sessionStorage.getItem('rds.current'); if(s) session=JSON.parse(s); }catch{} }
+
+  function paintAll(){
+    renderHeader();
+    renderAttempts();
+    resolveProgress();
+    renderLog();
+    paintTimer();
+  }
+
+  // Wire controls
+  elDate.addEventListener('change', e=>{ session.date=e.target.value||session.date; saveTemp(); });
+  elStart.addEventListener('change', e=>{ session.level = +e.target.value; session.attempts=[null,null,null]; saveTemp(); paintAll(); });
+
+  $('.rds-controls').addEventListener('click', e=>{
+    const btn=e.target.closest('button.tbtn'); if(!btn) return;
+    if(btn.dataset.act==='start') start();
+    if(btn.dataset.act==='pause') pause();
+    if(btn.dataset.act==='stop')  stop();
+  });
+
+  $('#rNewSession').addEventListener('click', ()=>{
+    session = emptySession();
+    paintAll(); saveTemp();
+  });
+
+  $('#rSaveSession').addEventListener('click', ()=>{
+    // Resolve pending set before saving
+    const res = resolveProgress();
+    if(res) applyProgress(res);
+    history.unshift(structuredClone(session));
+    saveHistory(); renderHistory();
+    alert('RDS session saved!');
+  });
+
+  // Attempts: Run / Fail
+elAttemptsBody.addEventListener('click', e=>{
+  const run = e.target.closest('button[data-run]');
+  const fail = e.target.closest('button[data-fail]');
+  if(!run && !fail) return;
+
+  const i = +(run?.dataset.run ?? fail?.dataset.fail);
+  session.attempts[i] = !!run;  // true for Run, false for Fail
+
+  // 1) Try early auto-advance if first two are runs
+  //    (Only possible right after attempt #2 is entered.)
+  if (i === 1 && earlyAdvanceIfEligible()) {
+    saveTemp();
+    paintAll();       // full repaint (new level, cleared attempts, log updated)
+    return;
+  }
+
+  // 2) Otherwise, use the normal 3-attempt resolution
+  const res = resolveProgress();
+  saveTemp();
+  renderAttempts();
+
+  if (res) {
+    applyProgress(res);
+    saveTemp();
+    paintAll();
+  } else {
+    paintAll();
+  }
+});
+
+  // Tick timer
+  setInterval(()=>{ if(session.timer.running){ paintTimer(); saveTemp(); } }, 1000);
+
+  // Boot
+  loadTemp();
   paintAll();
   renderHistory();
 }
