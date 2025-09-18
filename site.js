@@ -260,7 +260,16 @@ function initGhost(){
     ]
   };
 
-  function emptyRack(){ return { balls: 0, nineBonus: false, score: 0 }; }
+  // NEW rack model with break/run fields
+  function emptyRack(){
+    return {
+      breakBalls: 0,          // balls pocketed on the break (0-9)
+      scratchBreak: false,    // scratch on break? -> break balls don't count
+      runBalls: 0,            // balls run after break until miss/scratch (0-9)
+      nineMade: false,        // +1 if 9-ball made at any time that counts
+      score: 0                // computed
+    };
+  }
   function emptySession(n=5){ return {
     date: todayISO(),
     racks: Array.from({length:n}, emptyRack),
@@ -271,21 +280,71 @@ function initGhost(){
   let session = emptySession(5);
   let history = loadHistory();
 
-  const elDate = $('#gDate'), elCount = $('#gRackCount'), elBody = $('#gBody'), elTotal = $('#gTotal'), elRating = $('#gRating');
-  const elTimer = $('#gTimer');
+  // Elements
+  const elDate = $('#gDate'), elCount = $('#gRackCount'), elBody = $('#gBody'),
+        elTotal = $('#gTotal'), elRating = $('#gRating'), elTimer = $('#gTimer');
 
-  function fmt(ms){ const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60; const two=n=>String(n).padStart(2,'0'); return `${two(h)}:${two(m)}:${two(ss)}`; }
+  // KPI elements
+  const elKpiRacks = $('#gKpiRacks'),
+        elKpiAvgBreak = $('#gKpiAvgBreak'),
+        elKpiBreakScr = $('#gKpiBreakScr'),
+        elKpiAvgRun = $('#gKpiAvgRun'),
+        elKpiTotalBalls = $('#gKpiTotalBalls'),
+        elKpiRunouts = $('#gKpiRunouts'),
+        elKpiNines = $('#gKpiNines'),
+        elKpiAvgScore = $('#gKpiAvgScore');
+
+  // Timer helpers
+  const two=n=>String(n).padStart(2,'0');
+  function fmt(ms){ const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60; return `${two(h)}:${two(m)}:${two(ss)}`; }
   function curElapsed(){ return session.timer.running ? session.timer.elapsedMs + (Date.now()-(session.timer.lastStart||Date.now())) : session.timer.elapsedMs; }
   function start(){ if(session.timer.running) return; session.timer.running=true; session.timer.lastStart=Date.now(); saveSessionTemp(); paintTimer(); }
   function pause(){ if(!session.timer.running) return; session.timer.elapsedMs=curElapsed(); session.timer.running=false; session.timer.lastStart=null; saveSessionTemp(); paintTimer(); }
   function stop(){ session.timer.running=false; session.timer.elapsedMs=0; session.timer.lastStart=null; saveSessionTemp(); paintTimer(); }
   function paintTimer(){ elTimer.textContent = fmt(curElapsed()); }
 
+  // Compute a single rack's score from fields
+  function scoreRack(r){
+    const breakCount = r.scratchBreak ? 0 : Math.max(0, Math.min(9, Number(r.breakBalls)||0));
+    const runCount   = Math.max(0, Math.min(9, Number(r.runBalls)||0));
+    const nineBonus  = r.nineMade ? 1 : 0;
+    return breakCount + runCount + nineBonus;
+  }
+
+  // Compute session totals + rating
   function compute(){
+    session.racks.forEach(r => { r.score = scoreRack(r); });
     session.total = session.racks.reduce((sum,r)=>sum + r.score, 0);
+
     const band = ratingBands[session.rackCount].find(b=>session.total>=b.min && session.total<=b.max);
     elTotal.textContent = String(session.total);
     elRating.textContent = band ? `${band.rating} (${band.label})` : '—';
+
+    // KPIs
+    const racks = session.racks.length;
+    const sumBreak = session.racks.reduce((s,r)=>s + (r.scratchBreak ? 0 : (Number(r.breakBalls)||0)), 0);
+    const sumRun   = session.racks.reduce((s,r)=>s + (Number(r.runBalls)||0), 0);
+    const totalBalls = sumBreak + sumRun;
+    const breakScratches = session.racks.filter(r=>r.scratchBreak).length;
+    const nines = session.racks.filter(r=>r.nineMade).length;
+
+    // Full runouts: all 9 balls pocketed legally in the rack
+    // If scratch on break, break balls don't count.
+    // Condition: (scratchBreak ? runBalls === 9 : (breakBalls + runBalls) === 9)
+    const runouts = session.racks.filter(r=>{
+      const bb = r.scratchBreak ? 0 : (Number(r.breakBalls)||0);
+      const rb = Number(r.runBalls)||0;
+      return (bb + rb) === 9;
+    }).length;
+
+    elKpiRacks.textContent = String(racks);
+    elKpiAvgBreak.textContent = (racks ? (sumBreak/racks) : 0).toFixed(2);
+    elKpiBreakScr.textContent = (racks ? (100*breakScratches/racks) : 0).toFixed(0) + '%';
+    elKpiAvgRun.textContent = (racks ? (sumRun/racks) : 0).toFixed(2);
+    elKpiTotalBalls.textContent = String(totalBalls);
+    elKpiRunouts.textContent = String(runouts);
+    elKpiNines.textContent = String(nines);
+    elKpiAvgScore.textContent = (racks ? (session.total/racks) : 0).toFixed(2);
   }
 
   function renderRows(){
@@ -294,8 +353,10 @@ function initGhost(){
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${i+1}</td>
-        <td><input type="number" min="0" max="9" step="1" value="${r.balls}" data-i="${i}" class="gBalls"></td>
-        <td><input type="checkbox" ${r.nineBonus?'checked':''} data-i="${i}" class="gNine"></td>
+        <td><input type="number" min="0" max="9" step="1" value="${r.breakBalls}" data-i="${i}" class="gBreak"></td>
+        <td><input type="checkbox" ${r.scratchBreak?'checked':''} data-i="${i}" class="gScr"></td>
+        <td><input type="number" min="0" max="9" step="1" value="${r.runBalls}" data-i="${i}" class="gRun"></td>
+        <td><input type="checkbox" ${r.nineMade?'checked':''} data-i="${i}" class="gNine"></td>
         <td><strong id="gScore-${i}">${r.score}</strong></td>
       `;
       elBody.appendChild(tr);
@@ -304,24 +365,25 @@ function initGhost(){
 
   function recalc(i){
     const r = session.racks[i];
-    r.balls = Math.max(0, Math.min(9, Number(r.balls)||0));
-    r.score = r.balls + (r.nineBonus ? 1 : 0);
+    // Sanitize
+    r.breakBalls = Math.max(0, Math.min(9, Number(r.breakBalls)||0));
+    r.runBalls   = Math.max(0, Math.min(9, Number(r.runBalls)||0));
+    // Compute
+    r.score = scoreRack(r);
     $('#gScore-'+i).textContent = String(r.score);
     compute(); saveSessionTemp();
   }
 
   function wireRows(){
     elBody.addEventListener('input', e=>{
-      if(e.target.classList.contains('gBalls')){
-        const i=+e.target.dataset.i; session.racks[i].balls = Number(e.target.value);
-        recalc(i);
-      }
+      const i = +e.target.dataset.i;
+      if(e.target.classList.contains('gBreak')){ session.racks[i].breakBalls = Number(e.target.value); recalc(i); }
+      if(e.target.classList.contains('gRun'))  { session.racks[i].runBalls   = Number(e.target.value); recalc(i); }
     });
     elBody.addEventListener('change', e=>{
-      if(e.target.classList.contains('gNine')){
-        const i=+e.target.dataset.i; session.racks[i].nineBonus = e.target.checked;
-        recalc(i);
-      }
+      const i = +e.target.dataset.i;
+      if(e.target.classList.contains('gScr')) { session.racks[i].scratchBreak = e.target.checked; recalc(i); }
+      if(e.target.classList.contains('gNine')){ session.racks[i].nineMade     = e.target.checked; recalc(i); }
     });
   }
 
@@ -330,10 +392,12 @@ function initGhost(){
     if(!history.length){ host.innerHTML = '<p class="subtitle">No saved sessions yet.</p>'; return; }
     history.forEach((s,idx)=>{
       const div=document.createElement('div'); div.className='ghost-card';
+      const racks = s.racks.length;
+      const avgScore = racks ? (s.total/racks).toFixed(2) : '0.00';
       div.innerHTML=`<h3>${s.date} — ${s.rackCount} racks</h3>
-        <div><strong>Total:</strong> ${s.total}</div>
+        <div><strong>Total:</strong> ${s.total} (avg ${avgScore})</div>
         <div><strong>Rating:</strong> ${rateLabel(s.total, s.rackCount)}</div>
-        <div><strong>Racks:</strong> ${s.racks.map(r=>r.score).join(', ')}</div>
+        <div><strong>Racks (scores):</strong> ${s.racks.map(r=>r.score).join(', ')}</div>
         <div style="margin-top:6px;display:flex;gap:8px">
           <button data-act="load" data-i="${idx}" class="tbtn">Load</button>
           <button data-act="delete" data-i="${idx}" class="tbtn stop">Delete</button>
@@ -363,7 +427,10 @@ function initGhost(){
   function paintAll(){
     elDate.value = session.date;
     elCount.value = String(session.rackCount);
-    renderRows(); wireRows(); compute(); paintTimer();
+    renderRows();
+    wireRows();
+    compute();
+    paintTimer();
   }
 
   // controls
@@ -402,7 +469,6 @@ function initGhost(){
   paintAll();
   renderHistory();
 }
-
 /* ========= RDS – Runout Drill System ========= */
 function initRDS(){
   const LS_HISTORY = 'rds.sessions.v1';
