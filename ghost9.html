@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Ghost 9-Ball — Playing the Ghost Drill</title>
+  <title>Ghost 9-Ball — Evaluation Drill</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="site.css" />
 </head>
@@ -13,7 +13,7 @@
   </header>
 
   <main class="ghost-wrap">
-    <!-- NEW: Session KPIs -->
+    <!-- KPI strip -->
     <section class="stats-cards ghost-stats" aria-label="Ghost 9-Ball Session Stats">
       <div class="card"><div class="label">Total Racks</div><div id="gKpiRacks" class="value">0</div></div>
       <div class="card"><div class="label">Avg Break Balls</div><div id="gKpiAvgBreak" class="value">0.00</div></div>
@@ -46,27 +46,25 @@
 
     <!-- Racks table -->
     <table class="frames-table ghost-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Balls Made (score)</th>
-            <th>Scratch on Break?</th>
-            <th>Break Balls Made (0–9)</th>
-            <th>9 on Break?</th>
-            <th>9-Ball Made?</th>
-            <th>Rack Score</th>
-          </tr>
-        </thead>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Balls Made (score)</th>
+          <th>Scratch on Break?</th>
+          <th>Break Balls Made (0–9)</th>
+          <th>9 on Break?</th>
+          <th>9-Ball Made?</th>
+          <th>Rack Score</th>
+        </tr>
+      </thead>
       <tbody id="gBody"></tbody>
       <tfoot>
         <tr>
-          <td colspan="5" class="ghost-summary">
+          <td colspan="6" class="ghost-summary">
             <div><strong>Total Score:</strong> <span id="gTotal">0</span></div>
             <div><strong>Rating:</strong> <span id="gRating">—</span></div>
           </td>
-          <td>
-            <button id="gSave" class="add-btn">Save Session</button>
-          </td>
+          <td><button id="gSave" class="add-btn">Save Session</button></td>
         </tr>
       </tfoot>
     </table>
