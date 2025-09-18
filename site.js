@@ -262,17 +262,17 @@ function initGhost(){
     ]
   };
 
-  // New rack model (matches your desired columns)
+  // Rack model — note separate nineBreak (no scoring effect)
   function emptyRack(){
-  return { 
-    balls: 0,          // balls run
-    nineBonus: false,  // 9-ball made legally
-    nineBreak: false,  // 9-ball made on break
-    breakBalls: 0,     // balls pocketed on break
-    scratch: false,    // scratch on break
-    score: 0
-  };
-}
+    return {
+      balls: 0,           // total balls made in rack (0–9)
+      scratchBreak: false,
+      breakBalls: 0,      // balls on the break (0–9)
+      nineBreak: false,   // 9 on the break (tracked only)
+      nineMade: false,    // 9 made legally during run (+1)
+      score: 0
+    };
+  }
   function emptySession(n=5){ return {
     date: todayISO(),
     racks: Array.from({length:n}, emptyRack),
@@ -287,7 +287,7 @@ function initGhost(){
   const elDate = $('#gDate'), elCount = $('#gRackCount'), elBody = $('#gBody'),
         elTotal = $('#gTotal'), elRating = $('#gRating'), elTimer = $('#gTimer');
 
-  // KPI elements
+  // KPI elements (added gKpiNineBreak)
   const elKpiRacks = $('#gKpiRacks'),
         elKpiAvgBreak = $('#gKpiAvgBreak'),
         elKpiBreakScr = $('#gKpiBreakScr'),
@@ -295,27 +295,28 @@ function initGhost(){
         elKpiTotalBalls = $('#gKpiTotalBalls'),
         elKpiRunouts = $('#gKpiRunouts'),
         elKpiNines = $('#gKpiNines'),
+        elKpiNineBreak = $('#gKpiNineBreak'),
         elKpiAvgScore = $('#gKpiAvgScore');
 
   // Timer helpers
-  const two = n=>String(n).padStart(2,'0');
-  const fmt = ms => { const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60; return `${two(h)}:${two(m)}:${two(ss)}`; };
+  const two=n=>String(n).padStart(2,'0');
+  const fmt = ms=>{ const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60; return `${two(h)}:${two(m)}:${two(ss)}`; };
   const curElapsed = ()=> session.timer.running ? session.timer.elapsedMs + (Date.now()-(session.timer.lastStart||Date.now())) : session.timer.elapsedMs;
   function start(){ if(session.timer.running) return; session.timer.running=true; session.timer.lastStart=Date.now(); saveSessionTemp(); paintTimer(); }
   function pause(){ if(!session.timer.running) return; session.timer.elapsedMs=curElapsed(); session.timer.running=false; session.timer.lastStart=null; saveSessionTemp(); paintTimer(); }
   function stop(){ session.timer.running=false; session.timer.elapsedMs=0; session.timer.lastStart=null; saveSessionTemp(); paintTimer(); }
   function paintTimer(){ elTimer.textContent = fmt(curElapsed()); }
 
-  // Score for a single rack based on your rule
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,Number(v)||0));
+
+  // Score rule: legalBalls + (nineMade ? 1 : 0). nineBreak never affects score.
   function scoreRack(r){
-    const balls = clamp(r.balls, 0, 9);
-    const bb    = clamp(r.breakBalls, 0, 9);
+    const balls = clamp(r.balls,0,9);
+    const bb    = clamp(r.breakBalls,0,9);
     const legalBalls = r.scratchBreak ? Math.max(0, balls - bb) : balls;
     return legalBalls + (r.nineMade ? 1 : 0);
   }
-  const clamp = (v,min,max)=>Math.max(min,Math.min(max,Number(v)||0));
 
-  // Recompute everything (score, KPIs, rating)
   function compute(){
     session.racks.forEach(r => { r.score = scoreRack(r); });
     session.total = session.racks.reduce((sum,r)=>sum + r.score, 0);
@@ -332,8 +333,9 @@ function initGhost(){
       const balls = clamp(r.balls,0,9), bb=clamp(r.breakBalls,0,9);
       return s + (r.scratchBreak ? Math.max(0, balls - bb) : balls);
     }, 0);
-    const nines      = session.racks.filter(r=>r.nineMade).length;
-    const runouts    = session.racks.filter(r=>{
+    const ninesRun       = session.racks.filter(r=>r.nineMade).length;
+    const ninesOnBreak   = session.racks.filter(r=>r.nineBreak && !r.scratchBreak).length; // legal 9 on break only
+    const runouts        = session.racks.filter(r=>{
       const balls = clamp(r.balls,0,9), bb=clamp(r.breakBalls,0,9);
       const legal = r.scratchBreak ? Math.max(0, balls - bb) : balls;
       return legal === 9;
@@ -345,7 +347,8 @@ function initGhost(){
     elKpiAvgRun.textContent     = (racks ? (sumLegal/racks) : 0).toFixed(2);
     elKpiTotalBalls.textContent = String(sumLegal);
     elKpiRunouts.textContent    = String(runouts);
-    elKpiNines.textContent      = String(nines);
+    elKpiNines.textContent      = String(ninesRun);
+    elKpiNineBreak.textContent  = String(ninesOnBreak);
     elKpiAvgScore.textContent   = (racks ? (session.total/racks) : 0).toFixed(2);
   }
 
@@ -358,6 +361,7 @@ function initGhost(){
         <td><input type="number" min="0" max="9" step="1" value="${r.balls}" data-i="${i}" class="gBalls"></td>
         <td><input type="checkbox" ${r.scratchBreak?'checked':''} data-i="${i}" class="gScr"></td>
         <td><input type="number" min="0" max="9" step="1" value="${r.breakBalls}" data-i="${i}" class="gBreak"></td>
+        <td><input type="checkbox" ${r.nineBreak?'checked':''} data-i="${i}" class="gNineBrk"></td>
         <td><input type="checkbox" ${r.nineMade?'checked':''} data-i="${i}" class="gNine"></td>
         <td><strong id="gScore-${i}">${r.score}</strong></td>
       `;
@@ -366,35 +370,25 @@ function initGhost(){
   }
 
   function recalc(i){
-  const r = session.racks[i];
-  r.balls = Math.max(0, Math.min(9, Number(r.balls)||0));
-  
-  // Base balls = legal run
-  let score = r.balls;
-
-  // Apply legal 9-ball bonus only if nineBonus is checked
-  if(r.nineBonus) score += 1;
-
-  // If scratch on break, subtract break balls (they don’t count)
-  if(r.scratch) score -= r.breakBalls;
-
-  // Ensure non-negative
-  r.score = Math.max(0, score);
-
-  $('#gScore-'+i).textContent = String(r.score);
-  compute(); saveSessionTemp();
-}
+    const r = session.racks[i];
+    r.balls      = clamp(r.balls,0,9);
+    r.breakBalls = clamp(r.breakBalls,0,9);
+    r.score = scoreRack(r);
+    $('#gScore-'+i).textContent = String(r.score);
+    compute(); saveSessionTemp();
+  }
 
   function wireRows(){
     elBody.addEventListener('input', e=>{
       const i = +e.target.dataset.i;
-      if(e.target.classList.contains('gBalls')) { session.racks[i].balls      = e.target.value; recalc(i); }
-      if(e.target.classList.contains('gBreak')) { session.racks[i].breakBalls = e.target.value; recalc(i); }
+      if(e.target.classList.contains('gBalls'))  { session.racks[i].balls      = e.target.value; recalc(i); }
+      if(e.target.classList.contains('gBreak'))  { session.racks[i].breakBalls = e.target.value; recalc(i); }
     });
     elBody.addEventListener('change', e=>{
       const i = +e.target.dataset.i;
-      if(e.target.classList.contains('gScr'))  { session.racks[i].scratchBreak = e.target.checked; recalc(i); }
-      if(e.target.classList.contains('gNine')) { session.racks[i].nineMade     = e.target.checked; recalc(i); }
+      if(e.target.classList.contains('gScr'))     { session.racks[i].scratchBreak = e.target.checked; recalc(i); }
+      if(e.target.classList.contains('gNineBrk')) { session.racks[i].nineBreak    = e.target.checked; compute(); saveSessionTemp(); }
+      if(e.target.classList.contains('gNine'))    { session.racks[i].nineMade     = e.target.checked; recalc(i); }
     });
   }
 
@@ -429,7 +423,7 @@ function initGhost(){
     return band ? `${band.rating} (${band.label})` : '—';
   }
 
-  // persistence for Ghost
+  // persistence
   function saveHistory(){ localStorage.setItem(LS_KEY, JSON.stringify(history)); }
   function loadHistory(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch{ return []; } }
   function saveSessionTemp(){ sessionStorage.setItem('ghost9.current', JSON.stringify(session)); }
@@ -438,10 +432,7 @@ function initGhost(){
   function paintAll(){
     elDate.value = session.date;
     elCount.value = String(session.rackCount);
-    renderRows();
-    wireRows();
-    compute();
-    paintTimer();
+    renderRows(); wireRows(); compute(); paintTimer();
   }
 
   // controls
@@ -449,7 +440,6 @@ function initGhost(){
   elCount.addEventListener('change', e=>{
     const n = +e.target.value;
     session.rackCount = n;
-    // resize racks (keep existing values where possible)
     const cur = session.racks.map(r=>structuredClone(r));
     session.racks = Array.from({length:n}, (_,i)=> cur[i] ?? emptyRack());
     paintAll(); saveSessionTemp();
@@ -465,17 +455,14 @@ function initGhost(){
     paintAll(); saveSessionTemp();
   });
   $('#gSave').addEventListener('click', ()=>{
-    // finalize current scores
     session.racks.forEach((_,i)=>recalc(i));
     history.unshift(structuredClone(session));
     saveHistory(); renderHistory();
     alert('Session saved!');
   });
 
-  // ticking timer
   setInterval(()=>{ if(session.timer.running) { paintTimer(); saveSessionTemp(); } }, 1000);
 
-  // boot
   loadSessionTemp();
   paintAll();
   renderHistory();
