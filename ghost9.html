@@ -13,6 +13,18 @@
   </header>
 
   <main class="ghost-wrap">
+    <!-- NEW: Session KPIs -->
+    <section class="stats-cards ghost-stats" aria-label="Ghost 9-Ball Session Stats">
+      <div class="card"><div class="label">Total Racks</div><div id="gKpiRacks" class="value">0</div></div>
+      <div class="card"><div class="label">Avg Break Balls</div><div id="gKpiAvgBreak" class="value">0.00</div></div>
+      <div class="card"><div class="label">Break Scratch %</div><div id="gKpiBreakScr" class="value">0%</div></div>
+      <div class="card"><div class="label">Avg Balls Run</div><div id="gKpiAvgRun" class="value">0.00</div></div>
+      <div class="card"><div class="label">Total Balls Made</div><div id="gKpiTotalBalls" class="value">0</div></div>
+      <div class="card"><div class="label">Full Runouts</div><div id="gKpiRunouts" class="value">0</div></div>
+      <div class="card"><div class="label">9-Balls Made</div><div id="gKpiNines" class="value">0</div></div>
+      <div class="card"><div class="label">Avg Score/Rack</div><div id="gKpiAvgScore" class="value">0.00</div></div>
+    </section>
+
     <!-- Controls -->
     <section class="ghost-controls">
       <label>Session Date <input type="date" id="gDate"></label>
@@ -36,7 +48,9 @@
       <thead>
         <tr>
           <th>#</th>
-          <th>Balls Made (0–9)</th>
+          <th>Break Balls (0–9)</th>
+          <th>Scratch on Break?</th>
+          <th>Balls Run (0–9)</th>
           <th>9-Ball Made?</th>
           <th>Rack Score</th>
         </tr>
@@ -44,7 +58,7 @@
       <tbody id="gBody"></tbody>
       <tfoot>
         <tr>
-          <td colspan="3" class="ghost-summary">
+          <td colspan="5" class="ghost-summary">
             <div><strong>Total Score:</strong> <span id="gTotal">0</span></div>
             <div><strong>Rating:</strong> <span id="gRating">—</span></div>
           </td>
