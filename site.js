@@ -716,7 +716,7 @@ function initThreeBall(){
 
   // Actions
   $('#tbNew') && $('#tbNew').addEventListener('click', ()=>{
-    session = emptySession(Number(elLevel?.value)||3, Number(elAttempts?.value)||20);
+    session = emptySession(Number(elLevel?.value)||3, Number(elAttempts?.value)||5);
     paintAll();
   });
   function doSave(){
