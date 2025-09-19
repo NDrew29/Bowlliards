@@ -519,17 +519,17 @@ function initThreeBall(){
   };
 
   function emptyAttempt(){ return { cleared: 0 }; }
-  function emptySession(level=3, attempts=20){
+  function emptySession(level=3, attempts=5){
     return {
       date: todayISO(),
       level: Number(level) || 3,
-      attemptsCount: Number(attempts) || 20,
-      attempts: Array.from({length: Number(attempts) || 20}, emptyAttempt),
+      attemptsCount: Number(attempts) || 5,
+      attempts: Array.from({length: Number(attempts) || 5}, emptyAttempt),
       total: 0
     };
   }
 
-  let session = emptySession(3, 20);
+  let session = emptySession(3, 5);
   let history = loadHistory();
 
   const elDate     = $('#tbDate');
