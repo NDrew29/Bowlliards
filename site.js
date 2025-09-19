@@ -506,21 +506,25 @@ function initRDS(){
   loadTemp(); paintAll(); renderHistory();
 }
 
-/* =========================
-   3-Ball Run-Out Drill (minimal)
-   ========================= */
+/* ============================================================
+   3-Ball Run-Out Drill (fixed Run-out? column)
+   ============================================================ */
 function initThreeBall(){
   const LS_KEY = 'threeball.sessions.v1';
 
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Number(v)||0));
+  const clamp = (v, lo, hi) => {
+    const n = Number(v);
+    if (Number.isNaN(n)) return lo;
+    return Math.max(lo, Math.min(hi, n));
+  };
 
   function emptyAttempt(){ return { cleared: 0 }; }
   function emptySession(level=3, attempts=20){
     return {
       date: todayISO(),
-      level,                  // 3..15
-      attemptsCount: attempts, // 5/10/20
-      attempts: Array.from({length: attempts}, emptyAttempt),
+      level: Number(level) || 3,
+      attemptsCount: Number(attempts) || 20,
+      attempts: Array.from({length: Number(attempts) || 20}, emptyAttempt),
       total: 0
     };
   }
@@ -528,110 +532,137 @@ function initThreeBall(){
   let session = emptySession(3, 20);
   let history = loadHistory();
 
-  // elements
-  const elDate = $('#tbDate');
-  const elLevel = $('#tbLevel');
+  const elDate     = $('#tbDate');
+  const elLevel    = $('#tbLevel');
   const elAttempts = $('#tbAttempts');
-  const elBody = $('#tbBody');
-  const elTotal = $('#tbTotal');
-  const elFootPct = $('#tbFootPct');
-  const elHist = $('#tbHistory');
+  const elBody     = $('#tbBody');
+  const elTotal    = $('#tbTotal');
+  const elFootPct  = $('#tbFootPct');
+  const elHist     = $('#tbHistory');
 
-  // KPIs
   const kRuns   = $('#tbKpiRuns');
   const kRunPct = $('#tbKpiRunPct');
   const kAvg    = $('#tbKpiAvg');
   const kStreak = $('#tbKpiStreak');
 
-  // init level select 3..15
+  // Fill levels 3..15 once
   (function fillLevels(){
+    if (!elLevel) return;
     elLevel.innerHTML = Array.from({length:13},(_,i)=>`<option value="${i+3}">${i+3}</option>`).join('');
   })();
 
-  /* ---- compute & KPIs ---- */
-function compute(){
-  session.attempts.forEach(a => { a.cleared = clamp(a.cleared, 0, session.level); });
-  const total = session.attempts.reduce((s,a)=>s + a.cleared, 0);
-  session.total = total;
-  elTotal && (elTotal.textContent = String(total));
+  function isRun(i){
+    const a = session.attempts[i] || { cleared: 0 };
+    return Number(a.cleared) === Number(session.level);
+  }
 
-  const runs = session.attempts.filter(a => Number(a.cleared) === Number(session.level)).length;
-  const runPct = session.attemptsCount ? (100 * runs / session.attemptsCount) : 0;
-  const avg = session.attemptsCount ? (total / session.attemptsCount) : 0;
+  function compute(){
+    // normalize & clamp all attempts
+    const lvl = Number(session.level);
+    session.attempts.forEach(a => { a.cleared = clamp(a.cleared, 0, lvl); });
 
-  let cur=0, best=0;
-  session.attempts.forEach(a=>{
-    if (Number(a.cleared) === Number(session.level)) { cur++; best=Math.max(best,cur); }
-    else cur=0;
-  });
+    // total balls cleared (sum), runs, % etc.
+    const total = session.attempts.reduce((s,a)=> s + Number(a.cleared || 0), 0);
+    session.total = total;
 
-  kRuns   && (kRuns.textContent   = String(runs));
-  kRunPct && (kRunPct.textContent = `${Math.round(runPct)}%`);
-  kAvg    && (kAvg.textContent    = avg.toFixed(2));
-  kStreak && (kStreak.textContent = String(best));
-  elFootPct && (elFootPct.textContent = `${Math.round(runPct)}%`);
-}
+    const runs = session.attempts.filter((_,i)=> isRun(i)).length;
+    const runPct = session.attemptsCount ? (100 * runs / session.attemptsCount) : 0;
+    const avg = session.attemptsCount ? (total / session.attemptsCount) : 0;
 
-  /* ---- render rows ---- */
-   function renderRows(){
-     if(!elBody) return;
-     elBody.innerHTML = '';
-     for(let i=0;i<session.attemptsCount;i++){
-       const a = session.attempts[i] ?? { cleared: 0 };
-       const clearedNum = Number(a.cleared) || 0;
-       const run = clearedNum === Number(session.level);
-       const tr = document.createElement('tr');
-       tr.innerHTML = `
-         <td>${i+1}</td>
-         <td>
-           <input type="number" min="0" max="${session.level}" step="1"
-                  value="${clearedNum}" data-i="${i}" class="tbNum">
-         </td>
-         <td>${run ? '✅' : '❌'}</td>
-         <td><strong>${clearedNum}</strong></td>
-       `;
-       elBody.appendChild(tr);
-     }
-   }
-   
-   function wireRows(){
-     if(!elBody) return;
-     elBody.addEventListener('input', e=>{
-       if(!e.target.classList.contains('tbNum')) return;
-       const i = +e.target.dataset.i;
-       const v = clamp(e.target.value, 0, session.level);
-       session.attempts[i].cleared = v;
-       // reflect the clamped value back into the box
-       e.target.value = String(v);
-       // compute first, then render fresh rows (so ✅/❌ is correct immediately)
-       compute();
-       renderRows();
-     }, { passive: true });
-   }
+    // longest streak of runs
+    let cur=0, best=0;
+    session.attempts.forEach((_,i)=>{
+      if (isRun(i)) { cur++; best=Math.max(best,cur); } else { cur=0; }
+    });
 
+    if (elTotal)   elTotal.textContent   = String(total);
+    if (kRuns)     kRuns.textContent     = String(runs);
+    if (kRunPct)   kRunPct.textContent   = `${Math.round(runPct)}%`;
+    if (kAvg)      kAvg.textContent      = avg.toFixed(2);
+    if (kStreak)   kStreak.textContent   = String(best);
+    if (elFootPct) elFootPct.textContent = `${Math.round(runPct)}%`;
+  }
 
-  /* ---- history ---- */
+  function rowHTML(i){
+    const a = session.attempts[i] || { cleared: 0 };
+    const lvl = Number(session.level);
+    const clearedNum = clamp(a.cleared, 0, lvl);
+    const run = clearedNum === lvl;
+    return `
+      <td>${i+1}</td>
+      <td>
+        <input type="number" min="0" max="${lvl}" step="1"
+               value="${clearedNum}" data-i="${i}" class="tbNum">
+      </td>
+      <td id="tbRun-${i}" class="tbRun">${run ? '✅' : '❌'}</td>
+      <td><strong id="tbClr-${i}">${clearedNum}</strong></td>
+    `;
+  }
+
+  function renderRows(){
+    if (!elBody) return;
+    elBody.innerHTML = '';
+    for (let i=0; i<session.attemptsCount; i++){
+      const tr = document.createElement('tr');
+      tr.innerHTML = rowHTML(i);
+      elBody.appendChild(tr);
+    }
+  }
+
+  // Update just one row's run/cleared cells (no full re-render)
+  function updateRow(i){
+    const lvl = Number(session.level);
+    const a = session.attempts[i] || { cleared: 0 };
+    const clearedNum = clamp(a.cleared, 0, lvl);
+    const run = clearedNum === lvl;
+
+    const runCell = $(`#tbRun-${i}`);
+    const clrCell = $(`#tbClr-${i}`);
+    if (runCell) runCell.textContent = run ? '✅' : '❌';
+    if (clrCell) clrCell.textContent = String(clearedNum);
+  }
+
+  function wireRows(){
+    if (!elBody) return;
+    elBody.addEventListener('input', e=>{
+      if (!e.target.classList.contains('tbNum')) return;
+      const i = Number(e.target.dataset.i);
+      const lvl = Number(session.level);
+      const v = clamp(e.target.value, 0, lvl);
+
+      // write back clamped value so UI matches state
+      e.target.value = String(v);
+
+      // save & update
+      session.attempts[i].cleared = v;
+      updateRow(i);
+      compute();
+    }, { passive: true });
+  }
+
   function saveHistory(){ localStorage.setItem(LS_KEY, JSON.stringify(history)); }
   function loadHistory(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch{ return []; } }
 
   function renderHistory(){
+    if(!elHist) return;
     elHist.innerHTML = '';
-    if(!history.length){
-      elHist.innerHTML = '<p class="subtitle">No saved sessions yet.</p>';
-      return;
-    }
+    if(!history.length){ elHist.innerHTML = '<p class="subtitle">No saved sessions yet.</p>'; return; }
+
     history.forEach((s,idx)=>{
-      // derive display stats
-      const total = s.attempts.reduce((acc,a)=>acc + (a?.cleared||0), 0);
-      const runs = s.attempts.filter(a=>(a?.cleared||0) === s.level).length;
+      const lvl = Number(s.level);
+      const total = s.attempts.reduce((acc,a)=> acc + Number(a?.cleared||0), 0);
+      const runs = s.attempts.filter(a => Number(a?.cleared||0) === lvl).length;
       const pct = s.attemptsCount ? Math.round(100 * runs / s.attemptsCount) : 0;
       const avg = s.attemptsCount ? (total / s.attemptsCount).toFixed(2) : '0.00';
-      // streak
-      let cur=0,best=0; s.attempts.forEach(a=>{ if((a?.cleared||0)===s.level){cur++;best=Math.max(best,cur);} else cur=0; });
+
+      let cur=0,best=0;
+      s.attempts.forEach(a=>{
+        if (Number(a?.cleared||0) === lvl){ cur++; best=Math.max(best,cur); } else cur=0;
+      });
 
       const div=document.createElement('div'); div.className='ghost-card';
       div.innerHTML = `
-        <h3>${s.date} — Level ${s.level} • ${s.attemptsCount} attempts</h3>
+        <h3>${s.date} — Level ${lvl} • ${s.attemptsCount} attempts</h3>
         <div><strong>Run-outs:</strong> ${runs} (${pct}%)</div>
         <div><strong>Avg Balls:</strong> ${avg}</div>
         <div><strong>Longest Streak:</strong> ${best}</div>
@@ -643,60 +674,62 @@ function compute(){
       elHist.appendChild(div);
     });
 
-    // one-time wire
     elHist.addEventListener('click', e=>{
       const btn=e.target.closest('button[data-act]'); if(!btn) return;
       const i=+btn.dataset.i;
       if(btn.dataset.act==='load'){ session = structuredClone(history[i]); paintAll(); }
-      if(btn.dataset.act==='delete'){
-        if(confirm('Delete this session?')){ history.splice(i,1); saveHistory(); renderHistory(); }
-      }
+      if(btn.dataset.act==='delete'){ if(confirm('Delete this session?')){ history.splice(i,1); saveHistory(); renderHistory(); } }
     }, { once: true });
   }
 
-  /* ---- paint & controls ---- */
   function paintAll(){
-    elDate.value = session.date;
-    elLevel.value = String(session.level);
-    elAttempts.value = String(session.attemptsCount);
-    renderRows(); compute();
+    if (elDate)    elDate.value = session.date;
+    if (elLevel)   elLevel.value = String(session.level);
+    if (elAttempts)elAttempts.value = String(session.attemptsCount);
+    renderRows();
+    wireRows();
+    compute();
   }
 
-  // controls
-  elDate.addEventListener('change', e=>{ session.date = e.target.value || session.date; });
-  elLevel.addEventListener('change', e=>{
-    const lvl = clamp(e.target.value, 3, 15);
-    if(lvl !== session.level){
-      session.level = lvl;
-      // clamp each attempt to new level
-      session.attempts.forEach(a=> a.cleared = clamp(a.cleared, 0, session.level));
-      renderRows(); compute();
-    }
-  });
-  elAttempts.addEventListener('change', e=>{
-    const n = clamp(e.target.value, 1, 100); // guardrail; UI shows 5/10/20
-    session.attemptsCount = n;
-    const cur = session.attempts.map(x=>structuredClone(x));
-    session.attempts = Array.from({length:n}, (_,i)=> cur[i] ?? emptyAttempt());
-    renderRows(); compute();
+  // Controls
+  elDate && elDate.addEventListener('change', e=>{
+    session.date = e.target.value || session.date;
   });
 
-  $('#tbNew').addEventListener('click', ()=>{
-    session = emptySession(+elLevel.value || 3, +elAttempts.value || 20);
+  elLevel && elLevel.addEventListener('change', e=>{
+    const lvl = clamp(e.target.value, 3, 15);
+    if (lvl !== session.level){
+      session.level = lvl;
+      // clamp existing values to new level & repaint
+      session.attempts.forEach(a=> a.cleared = clamp(a.cleared, 0, lvl));
+      paintAll();
+    }
+  });
+
+  elAttempts && elAttempts.addEventListener('change', e=>{
+    const n = clamp(e.target.value, 1, 100);
+    session.attemptsCount = n;
+    const cur = session.attempts.map(x=> structuredClone(x));
+    session.attempts = Array.from({length:n}, (_,i)=> cur[i] ?? emptyAttempt());
+    paintAll();
+  });
+
+  // Actions
+  $('#tbNew') && $('#tbNew').addEventListener('click', ()=>{
+    session = emptySession(Number(elLevel?.value)||3, Number(elAttempts?.value)||20);
     paintAll();
   });
   function doSave(){
-    // finalize totals then store
     compute();
     history.unshift(structuredClone(session));
     saveHistory();
     renderHistory();
     alert('3-Ball session saved!');
   }
-  $('#tbSave').addEventListener('click', doSave);
-  $('#tbSave2').addEventListener('click', doSave);
+  $('#tbSave')  && $('#tbSave').addEventListener('click', doSave);
+  $('#tbSave2') && $('#tbSave2').addEventListener('click', doSave);
 
-  // boot
+  // Boot
   paintAll();
   renderHistory();
 }
