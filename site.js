@@ -549,66 +549,66 @@ function initThreeBall(){
   })();
 
   /* ---- compute & KPIs ---- */
-  function compute(){
-    // clamp all rows and calculate run + score
-    session.attempts.forEach(a => {
-      a.cleared = clamp(a.cleared, 0, session.level);
-    });
+function compute(){
+  session.attempts.forEach(a => { a.cleared = clamp(a.cleared, 0, session.level); });
+  const total = session.attempts.reduce((s,a)=>s + a.cleared, 0);
+  session.total = total;
+  elTotal && (elTotal.textContent = String(total));
 
-    // totals
-    const total = session.attempts.reduce((s,a)=>s + a.cleared, 0);
-    session.total = total;
-    setText('tbTotal', total);
+  const runs = session.attempts.filter(a => Number(a.cleared) === Number(session.level)).length;
+  const runPct = session.attemptsCount ? (100 * runs / session.attemptsCount) : 0;
+  const avg = session.attemptsCount ? (total / session.attemptsCount) : 0;
 
-    // run-outs & % & avg
-    const runs = session.attempts.filter(a=>a.cleared === session.level).length;
-    const runPct = session.attemptsCount ? (100 * runs / session.attemptsCount) : 0;
-    const avg = session.attemptsCount ? (total / session.attemptsCount) : 0;
+  let cur=0, best=0;
+  session.attempts.forEach(a=>{
+    if (Number(a.cleared) === Number(session.level)) { cur++; best=Math.max(best,cur); }
+    else cur=0;
+  });
 
-    // longest streak
-    let cur=0, best=0;
-    session.attempts.forEach(a=>{
-      if(a.cleared === session.level){ cur++; best=Math.max(best,cur); }
-      else cur=0;
-    });
-
-    // KPIs
-    if(kRuns)   kRuns.textContent   = String(runs);
-    if(kRunPct) kRunPct.textContent = `${Math.round(runPct)}%`;
-    if(kAvg)    kAvg.textContent    = avg.toFixed(2);
-    if(kStreak) kStreak.textContent = String(best);
-
-    if(elFootPct) elFootPct.textContent = `${Math.round(runPct)}%`;
-  }
+  kRuns   && (kRuns.textContent   = String(runs));
+  kRunPct && (kRunPct.textContent = `${Math.round(runPct)}%`);
+  kAvg    && (kAvg.textContent    = avg.toFixed(2));
+  kStreak && (kStreak.textContent = String(best));
+  elFootPct && (elFootPct.textContent = `${Math.round(runPct)}%`);
+}
 
   /* ---- render rows ---- */
-  function renderRows(){
-    elBody.innerHTML = '';
-    for(let i=0;i<session.attemptsCount;i++){
-      const a = session.attempts[i] ?? emptyAttempt();
-      const tr = document.createElement('tr');
-      const run = a.cleared === session.level;
-      tr.innerHTML = `
-        <td>${i+1}</td>
-        <td><input type="number" min="0" max="${session.level}" step="1" value="${a.cleared}" data-i="${i}" class="tbNum"></td>
-        <td>${run ? '✅' : '❌'}</td>
-        <td><strong>${a.cleared}</strong></td>
-      `;
-      elBody.appendChild(tr);
-    }
-  }
+   function renderRows(){
+     if(!elBody) return;
+     elBody.innerHTML = '';
+     for(let i=0;i<session.attemptsCount;i++){
+       const a = session.attempts[i] ?? { cleared: 0 };
+       const clearedNum = Number(a.cleared) || 0;
+       const run = clearedNum === Number(session.level);
+       const tr = document.createElement('tr');
+       tr.innerHTML = `
+         <td>${i+1}</td>
+         <td>
+           <input type="number" min="0" max="${session.level}" step="1"
+                  value="${clearedNum}" data-i="${i}" class="tbNum">
+         </td>
+         <td>${run ? '✅' : '❌'}</td>
+         <td><strong>${clearedNum}</strong></td>
+       `;
+       elBody.appendChild(tr);
+     }
+   }
+   
+   function wireRows(){
+     if(!elBody) return;
+     elBody.addEventListener('input', e=>{
+       if(!e.target.classList.contains('tbNum')) return;
+       const i = +e.target.dataset.i;
+       const v = clamp(e.target.value, 0, session.level);
+       session.attempts[i].cleared = v;
+       // reflect the clamped value back into the box
+       e.target.value = String(v);
+       // compute first, then render fresh rows (so ✅/❌ is correct immediately)
+       compute();
+       renderRows();
+     }, { passive: true });
+   }
 
-  function wireRows(){
-    elBody.addEventListener('input', e=>{
-      if(!e.target.classList.contains('tbNum')) return;
-      const i = +e.target.dataset.i;
-      const v = clamp(e.target.value, 0, session.level);
-      session.attempts[i].cleared = v;
-      compute();
-      // re-render only the status cells quickly
-      renderRows(); // simple full rerender keeps it robust & small
-    }, { passive: true });
-  }
 
   /* ---- history ---- */
   function saveHistory(){ localStorage.setItem(LS_KEY, JSON.stringify(history)); }
