@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>3-Ball Run-Out Drill</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="site.css" />
+</head>
+<body data-page="threeball">
+  <header>
+    <h1>3-Ball Run-Out Drill</h1>
+    <a href="index.html" class="back-link">← Home</a>
+  </header>
+
+  <!-- KPIs -->
+  <section class="stats-cards" aria-label="3-Ball KPIs">
+    <div class="card"><div class="label">Run-outs</div><div id="tbKpiRuns" class="value">0</div></div>
+    <div class="card"><div class="label">Run-out %</div><div id="tbKpiRunPct" class="value">0%</div></div>
+    <div class="card"><div class="label">Avg Balls / Attempt</div><div id="tbKpiAvg" class="value">0.00</div></div>
+    <div class="card"><div class="label">Longest Run-out Streak</div><div id="tbKpiStreak" class="value">0</div></div>
+  </section>
+
+  <main class="threeball-wrap">
+    <!-- Controls -->
+    <section class="threeball-controls">
+      <label>Session Date
+        <input type="date" id="tbDate" />
+      </label>
+
+      <label>Level (balls)
+        <select id="tbLevel">
+          <!-- JS fills 3..15 -->
+        </select>
+      </label>
+
+      <label>Attempts
+        <select id="tbAttempts">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+        </select>
+      </label>
+
+      <div class="tb-actions">
+        <button id="tbNew" class="add-btn">New Session</button>
+        <button id="tbSave" class="add-btn">Save Session</button>
+      </div>
+    </section>
+
+    <!-- Attempts table -->
+    <table class="frames-table tb-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Balls Cleared (0–Level)</th>
+          <th>Run-out?</th>
+          <th>Attempt Score</th>
+        </tr>
+      </thead>
+      <tbody id="tbBody"></tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" class="ghost-summary">
+            <div><strong>Total Score:</strong> <span id="tbTotal">0</span></div>
+            <div><strong>Run-out %:</strong> <span id="tbFootPct">0%</span></div>
+          </td>
+          <td><button id="tbSave2" class="add-btn">Save Session</button></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- History -->
+    <section class="tb-history">
+      <h2>Saved Sessions</h2>
+      <div id="tbHistory" class="ghost-history-list"></div>
+    </section>
+  </main>
+
+  <script src="site.js"></script>
+</body>
+</html>
