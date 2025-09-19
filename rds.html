@@ -16,20 +16,15 @@
     <!-- Controls -->
     <section class="rds-controls">
       <label>Session Date <input type="date" id="rDate"></label>
-
       <label>Start Level
-        <select id="rStart">
-          <!-- JS fills 1..16 and selects current -->
-        </select>
+        <select id="rStart"></select>
       </label>
-
       <div class="timer">
         <span id="rTimer" class="display">00:00:00</span>
         <button class="tbtn start" data-act="start">Start</button>
         <button class="tbtn pause" data-act="pause">Pause</button>
         <button class="tbtn stop"  data-act="stop">Stop</button>
       </div>
-
       <div class="rds-actions">
         <button id="rNewSession" class="add-btn">New Session</button>
         <button id="rSaveSession" class="add-btn">Save Session</button>
@@ -45,15 +40,8 @@
       <p id="rLevelDesc" class="subtitle"></p>
 
       <table class="frames-table rds-table">
-        <thead>
-          <tr>
-            <th>Attempt</th>
-            <th>Result</th>
-          </tr>
-        </thead>
-        <tbody id="rAttempts">
-          <!-- three rows with Run / Fail buttons -->
-        </tbody>
+        <thead><tr><th>Attempt</th><th>Result</th></tr></thead>
+        <tbody id="rAttempts"></tbody>
         <tfoot>
           <tr>
             <td colspan="2" class="rds-next">
@@ -65,13 +53,11 @@
       </table>
     </section>
 
-    <!-- Session Log -->
     <section class="rds-log">
       <h2>Session Log</h2>
       <div id="rLog" class="rds-log-list"></div>
     </section>
 
-    <!-- History -->
     <section class="rds-history">
       <h2>Saved Sessions</h2>
       <div id="rHistory" class="rds-history-list"></div>
