@@ -14,6 +14,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (page === 'bowlliards') initBowlliards();
   else if (page === 'ghost9') initGhost();
   else if (page === 'rds') initRDS();
+   else if (page === 'threeball') initThreeBall?.();
 });
 
 /* ========= Bowlliards ========= */
@@ -503,4 +504,199 @@ function initRDS(){
   setInterval(()=>{ if(session.timer.running){ paintTimer(); saveTemp(); } },1000);
 
   loadTemp(); paintAll(); renderHistory();
+}
+
+/* =========================
+   3-Ball Run-Out Drill (minimal)
+   ========================= */
+function initThreeBall(){
+  const LS_KEY = 'threeball.sessions.v1';
+
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Number(v)||0));
+
+  function emptyAttempt(){ return { cleared: 0 }; }
+  function emptySession(level=3, attempts=20){
+    return {
+      date: todayISO(),
+      level,                  // 3..15
+      attemptsCount: attempts, // 5/10/20
+      attempts: Array.from({length: attempts}, emptyAttempt),
+      total: 0
+    };
+  }
+
+  let session = emptySession(3, 20);
+  let history = loadHistory();
+
+  // elements
+  const elDate = $('#tbDate');
+  const elLevel = $('#tbLevel');
+  const elAttempts = $('#tbAttempts');
+  const elBody = $('#tbBody');
+  const elTotal = $('#tbTotal');
+  const elFootPct = $('#tbFootPct');
+  const elHist = $('#tbHistory');
+
+  // KPIs
+  const kRuns   = $('#tbKpiRuns');
+  const kRunPct = $('#tbKpiRunPct');
+  const kAvg    = $('#tbKpiAvg');
+  const kStreak = $('#tbKpiStreak');
+
+  // init level select 3..15
+  (function fillLevels(){
+    elLevel.innerHTML = Array.from({length:13},(_,i)=>`<option value="${i+3}">${i+3}</option>`).join('');
+  })();
+
+  /* ---- compute & KPIs ---- */
+  function compute(){
+    // clamp all rows and calculate run + score
+    session.attempts.forEach(a => {
+      a.cleared = clamp(a.cleared, 0, session.level);
+    });
+
+    // totals
+    const total = session.attempts.reduce((s,a)=>s + a.cleared, 0);
+    session.total = total;
+    setText('tbTotal', total);
+
+    // run-outs & % & avg
+    const runs = session.attempts.filter(a=>a.cleared === session.level).length;
+    const runPct = session.attemptsCount ? (100 * runs / session.attemptsCount) : 0;
+    const avg = session.attemptsCount ? (total / session.attemptsCount) : 0;
+
+    // longest streak
+    let cur=0, best=0;
+    session.attempts.forEach(a=>{
+      if(a.cleared === session.level){ cur++; best=Math.max(best,cur); }
+      else cur=0;
+    });
+
+    // KPIs
+    if(kRuns)   kRuns.textContent   = String(runs);
+    if(kRunPct) kRunPct.textContent = `${Math.round(runPct)}%`;
+    if(kAvg)    kAvg.textContent    = avg.toFixed(2);
+    if(kStreak) kStreak.textContent = String(best);
+
+    if(elFootPct) elFootPct.textContent = `${Math.round(runPct)}%`;
+  }
+
+  /* ---- render rows ---- */
+  function renderRows(){
+    elBody.innerHTML = '';
+    for(let i=0;i<session.attemptsCount;i++){
+      const a = session.attempts[i] ?? emptyAttempt();
+      const tr = document.createElement('tr');
+      const run = a.cleared === session.level;
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td><input type="number" min="0" max="${session.level}" step="1" value="${a.cleared}" data-i="${i}" class="tbNum"></td>
+        <td>${run ? '✅' : '❌'}</td>
+        <td><strong>${a.cleared}</strong></td>
+      `;
+      elBody.appendChild(tr);
+    }
+  }
+
+  function wireRows(){
+    elBody.addEventListener('input', e=>{
+      if(!e.target.classList.contains('tbNum')) return;
+      const i = +e.target.dataset.i;
+      const v = clamp(e.target.value, 0, session.level);
+      session.attempts[i].cleared = v;
+      compute();
+      // re-render only the status cells quickly
+      renderRows(); // simple full rerender keeps it robust & small
+    }, { passive: true });
+  }
+
+  /* ---- history ---- */
+  function saveHistory(){ localStorage.setItem(LS_KEY, JSON.stringify(history)); }
+  function loadHistory(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch{ return []; } }
+
+  function renderHistory(){
+    elHist.innerHTML = '';
+    if(!history.length){
+      elHist.innerHTML = '<p class="subtitle">No saved sessions yet.</p>';
+      return;
+    }
+    history.forEach((s,idx)=>{
+      // derive display stats
+      const total = s.attempts.reduce((acc,a)=>acc + (a?.cleared||0), 0);
+      const runs = s.attempts.filter(a=>(a?.cleared||0) === s.level).length;
+      const pct = s.attemptsCount ? Math.round(100 * runs / s.attemptsCount) : 0;
+      const avg = s.attemptsCount ? (total / s.attemptsCount).toFixed(2) : '0.00';
+      // streak
+      let cur=0,best=0; s.attempts.forEach(a=>{ if((a?.cleared||0)===s.level){cur++;best=Math.max(best,cur);} else cur=0; });
+
+      const div=document.createElement('div'); div.className='ghost-card';
+      div.innerHTML = `
+        <h3>${s.date} — Level ${s.level} • ${s.attemptsCount} attempts</h3>
+        <div><strong>Run-outs:</strong> ${runs} (${pct}%)</div>
+        <div><strong>Avg Balls:</strong> ${avg}</div>
+        <div><strong>Longest Streak:</strong> ${best}</div>
+        <div style="margin-top:6px;display:flex;gap:8px">
+          <button data-act="load" data-i="${idx}" class="tbtn">Load</button>
+          <button data-act="delete" data-i="${idx}" class="tbtn stop">Delete</button>
+        </div>
+      `;
+      elHist.appendChild(div);
+    });
+
+    // one-time wire
+    elHist.addEventListener('click', e=>{
+      const btn=e.target.closest('button[data-act]'); if(!btn) return;
+      const i=+btn.dataset.i;
+      if(btn.dataset.act==='load'){ session = structuredClone(history[i]); paintAll(); }
+      if(btn.dataset.act==='delete'){
+        if(confirm('Delete this session?')){ history.splice(i,1); saveHistory(); renderHistory(); }
+      }
+    }, { once: true });
+  }
+
+  /* ---- paint & controls ---- */
+  function paintAll(){
+    elDate.value = session.date;
+    elLevel.value = String(session.level);
+    elAttempts.value = String(session.attemptsCount);
+    renderRows(); compute();
+  }
+
+  // controls
+  elDate.addEventListener('change', e=>{ session.date = e.target.value || session.date; });
+  elLevel.addEventListener('change', e=>{
+    const lvl = clamp(e.target.value, 3, 15);
+    if(lvl !== session.level){
+      session.level = lvl;
+      // clamp each attempt to new level
+      session.attempts.forEach(a=> a.cleared = clamp(a.cleared, 0, session.level));
+      renderRows(); compute();
+    }
+  });
+  elAttempts.addEventListener('change', e=>{
+    const n = clamp(e.target.value, 1, 100); // guardrail; UI shows 5/10/20
+    session.attemptsCount = n;
+    const cur = session.attempts.map(x=>structuredClone(x));
+    session.attempts = Array.from({length:n}, (_,i)=> cur[i] ?? emptyAttempt());
+    renderRows(); compute();
+  });
+
+  $('#tbNew').addEventListener('click', ()=>{
+    session = emptySession(+elLevel.value || 3, +elAttempts.value || 20);
+    paintAll();
+  });
+  function doSave(){
+    // finalize totals then store
+    compute();
+    history.unshift(structuredClone(session));
+    saveHistory();
+    renderHistory();
+    alert('3-Ball session saved!');
+  }
+  $('#tbSave').addEventListener('click', doSave);
+  $('#tbSave2').addEventListener('click', doSave);
+
+  // boot
+  paintAll();
+  renderHistory();
 }
