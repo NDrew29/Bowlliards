@@ -77,6 +77,14 @@ header h1{flex:1;font-size:1.8rem;margin:0 0 12px}
 .rds-log-list,.rds-history-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
 .rds-card{background:var(--cell);border:1px solid var(--border);border-radius:10px;padding:12px}
 
+/* Threeball */
+.threeball-wrap{display:block;gap:16px}
+.threeball-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 0}
+.threeball-controls label{display:flex;flex-direction:column;gap:6px}
+.threeball-controls input[type="date"], .threeball-controls select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--cell)}
+.tb-table td input[type="number"]{width:88px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--cell)}
+.tb-actions{display:flex;gap:8px}
+
 /* Responsive */
 @media (max-width:1024px){ .stats-cards{grid-template-columns:repeat(3,minmax(160px,1fr))} }
 @media (max-width:880px){
