@@ -267,12 +267,27 @@ function initGhost(){
     });
   }
   function recalc(i){
-    const r=session.racks[i];
-    r.balls=clamp(r.balls,0,9); r.breakBalls=clamp(r.breakBalls,0,9);
-    r.score=scoreRack(r);
-    setText(`gScore-${i}`, r.score);
-    compute(); saveTemp();
+  const r = session.racks[i];
+
+  // normalize inputs
+  r.balls       = clamp(r.balls, 0, 9);   // "Balls Made" typed by you
+  r.breakBalls  = clamp(r.breakBalls, 0, 9); // tracked separately
+  r.scratch     = !!r.scratch; 
+  r.nineOnBreak = !!r.nineOnBreak;
+  r.nineMade    = !!r.nineMade;
+
+  // 9-ball counts for +1 only if legal
+  const nineLegal = (r.nineOnBreak && !r.scratch) || r.nineMade;
+
+  // Score = balls made (typed) + bonus if legal 9
+  r.score = r.balls + (nineLegal ? 1 : 0);
+
+  // push to UI
+  document.getElementById('gScore-'+i).textContent = String(r.score);
+
+  compute(); // recompute totals & rating
   }
+   
   function wireRows(){
     elBody.addEventListener('input', e=>{
       const i=+e.target.dataset.i;
