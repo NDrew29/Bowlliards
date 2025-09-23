@@ -596,6 +596,9 @@ function initThreeBall(){
     if (kAvg)      kAvg.textContent      = avg.toFixed(2);
     if (kStreak)   kStreak.textContent   = String(best);
     if (elFootPct) elFootPct.textContent = `${Math.round(runPct)}%`;
+     
+   const kTotal = $('#tbKpiTotal');
+     kTotal && (kTotal.textContent = String(total))
   }
 
   function rowHTML(i){
@@ -669,6 +672,8 @@ function initThreeBall(){
       const runs = s.attempts.filter(a => Number(a?.cleared||0) === lvl).length;
       const pct = s.attemptsCount ? Math.round(100 * runs / s.attemptsCount) : 0;
       const avg = s.attemptsCount ? (total / s.attemptsCount).toFixed(2) : '0.00';
+      const ballsTotal = s.attempts.reduce((acc,a)=> acc + Number(a?.cleared||0), 0);
+div.innerHTML += `<div><strong>Total Balls:</strong> ${ballsTotal}</div>`;
 
       let cur=0,best=0;
       s.attempts.forEach(a=>{
