@@ -662,45 +662,61 @@ function initThreeBall(){
   function loadHistory(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch{ return []; } }
 
   function renderHistory(){
-    if(!elHist) return;
-    elHist.innerHTML = '';
-    if(!history.length){ elHist.innerHTML = '<p class="subtitle">No saved sessions yet.</p>'; return; }
+  if(!elHist) return;
+  elHist.innerHTML = '';
 
-    history.forEach((s,idx)=>{
-      const lvl = Number(s.level);
-      const total = s.attempts.reduce((acc,a)=> acc + Number(a?.cleared||0), 0);
-      const runs = s.attempts.filter(a => Number(a?.cleared||0) === lvl).length;
-      const pct = s.attemptsCount ? Math.round(100 * runs / s.attemptsCount) : 0;
-      const avg = s.attemptsCount ? (total / s.attemptsCount).toFixed(2) : '0.00';
-      const ballsTotal = s.attempts.reduce((acc,a)=> acc + Number(a?.cleared||0), 0);
-div.innerHTML += `<div><strong>Total Balls:</strong> ${ballsTotal}</div>`;
+  if(!history.length){
+    elHist.innerHTML = '<p class="subtitle">No saved sessions yet.</p>';
+    return;
+  }
 
-      let cur=0,best=0;
-      s.attempts.forEach(a=>{
-        if (Number(a?.cleared||0) === lvl){ cur++; best=Math.max(best,cur); } else cur=0;
-      });
+  history.forEach((s,idx)=>{
+    const lvl = Number(s.level);
+    const totalBalls = s.attempts.reduce((acc,a)=> acc + Number(a?.cleared||0), 0);
+    const runs = s.attempts.filter(a => Number(a?.cleared||0) === lvl).length;
+    const pct  = s.attemptsCount ? Math.round(100 * runs / s.attemptsCount) : 0;
+    const avg  = s.attemptsCount ? (totalBalls / s.attemptsCount).toFixed(2) : '0.00';
 
-      const div=document.createElement('div'); div.className='ghost-card';
-      div.innerHTML = `
-        <h3>${s.date} — Level ${lvl} • ${s.attemptsCount} attempts</h3>
-        <div><strong>Run-outs:</strong> ${runs} (${pct}%)</div>
-        <div><strong>Avg Balls:</strong> ${avg}</div>
-        <div><strong>Longest Streak:</strong> ${best}</div>
-        <div style="margin-top:6px;display:flex;gap:8px">
-          <button data-act="load" data-i="${idx}" class="tbtn">Load</button>
-          <button data-act="delete" data-i="${idx}" class="tbtn stop">Delete</button>
-        </div>
-      `;
-      elHist.appendChild(div);
+    let cur=0,best=0;
+    s.attempts.forEach(a=>{
+      if (Number(a?.cleared||0) === lvl){ cur++; best=Math.max(best,cur); }
+      else cur=0;
     });
 
-    elHist.addEventListener('click', e=>{
-      const btn=e.target.closest('button[data-act]'); if(!btn) return;
-      const i=+btn.dataset.i;
-      if(btn.dataset.act==='load'){ session = structuredClone(history[i]); paintAll(); }
-      if(btn.dataset.act==='delete'){ if(confirm('Delete this session?')){ history.splice(i,1); saveHistory(); renderHistory(); } }
-    }, { once: true });
-  }
+    const div = document.createElement('div');
+    div.className = 'ghost-card';
+    div.innerHTML = `
+      <h3>${s.date} — Level ${lvl} • ${s.attemptsCount} attempts</h3>
+      <div><strong>Total Balls:</strong> ${totalBalls}</div>
+      <div><strong>Run-outs:</strong> ${runs} (${pct}%)</div>
+      <div><strong>Avg Balls:</strong> ${avg}</div>
+      <div><strong>Longest Streak:</strong> ${best}</div>
+      <div style="margin-top:6px;display:flex;gap:8px">
+        <button data-act="load" data-i="${idx}" class="tbtn">Load</button>
+        <button data-act="delete" data-i="${idx}" class="tbtn stop">Delete</button>
+      </div>
+    `;
+    elHist.appendChild(div);
+  });
+
+  // (re)bind once per render
+  elHist.addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    const i = +btn.dataset.i;
+    if(btn.dataset.act==='load'){
+      session = structuredClone(history[i]);
+      paintAll();
+    }
+    if(btn.dataset.act==='delete'){
+      if(confirm('Delete this session?')){
+        history.splice(i,1);
+        saveHistory();
+        renderHistory();
+      }
+    }
+  }, { once: true });
+}
 
   function paintAll(){
     if (elDate)    elDate.value = session.date;
