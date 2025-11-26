@@ -66,6 +66,31 @@ header h1{flex:1;font-size:1.8rem;margin:0 0 12px}
 .mini:nth-child(2n){border-right:none}.frame.tenth .mini:nth-child(3n){border-right:none}
 .mini.selected{background:var(--hi)} .mini.disabled{color:#aaa}
 .bottom-actions{display:flex;justify-content:flex-end}
+.board-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.delete-wrap {
+  margin-left: auto;
+}
+
+.delete-game-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #b00020;
+  background: #e53935;
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.delete-game-btn:hover {
+  background: #c62828;
+}
 
 /* RDS */
 .rds-wrap{display:block;gap:16px}
