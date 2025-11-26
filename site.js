@@ -78,55 +78,167 @@ function initBowlliards(){
   const nowElapsed=b=> b.timer.running ? b.timer.elapsedMs + (Date.now()-(b.timer.lastStart||Date.now())) : b.timer.elapsedMs;
 
   function render(){
-    const host=$('#boards'); host.innerHTML='';
-    boards.forEach((b,bi)=>{
-      compute(b);
-      const hdr=document.createElement('div'); hdr.className='board-header';
-      const date=document.createElement('div'); date.innerHTML=`<span class="label">Game Date:</span> <input type="date" value="${b.date}">`;
-      $('input',date).addEventListener('change',e=>{ b.date=e.target.value||b.date; save(); computeKPIs(); });
-      const timer=document.createElement('div'); timer.className='timer';
-      timer.innerHTML=`<span id="timer-${bi}" class="display">${fmtTime(nowElapsed(b))}</span>
-        <button class="tbtn start" data-a="start">Start</button>
-        <button class="tbtn pause" data-a="pause">Pause</button>
-        <button class="tbtn stop" data-a="stop">Stop</button>`;
-      const totals=document.createElement('div'); totals.className='totals'; totals.innerHTML=`Total: <strong id="total-${bi}">${b.total}</strong>`;
-      hdr.append(date,timer,totals);
+  const host = $('#boards');
+  host.innerHTML = '';
 
-      const table=document.createElement('table'); table.className='frames-table';
-      table.innerHTML=`<thead><tr><th></th>${Array.from({length:10},(_,i)=>`<th>${i+1}</th>`).join('')}<th>Max Possible</th><th>Total</th></tr></thead>
-      <tbody>
-        <tr><td>Rolls</td>${Array.from({length:10},(_,i)=>`<td><div class="frame ${i===9?'tenth':''}" data-fi="${i}"></div></td>`).join('')}
-            <td rowspan="2" class="totals-col"><strong>300</strong></td>
-            <td rowspan="2" class="totals-col"><div id="grand-${bi}">${b.total}</div></td></tr>
-        <tr><td>0</td>${Array.from({length:10},(_,i)=>`<td id="cum-${bi}-${i}">${b.frames[i].cumul}</td>`).join('')}</tr>
-      </tbody>`;
-      const section=document.createElement('section'); section.className='board'; section.append(hdr,table); host.appendChild(section);
+  boards.forEach((b, bi) => {
+    compute(b);
 
-      // minis
-      $$('.frame',table).forEach(fe=>{
-        const fi=+fe.dataset.fi; const fr=b.frames[fi]; fe.innerHTML='';
-        const cnt=fi===9?3:2;
-        for(let r=0;r<cnt;r++){
-          const dv=document.createElement('div'); dv.className='mini';
-          dv.textContent = ux(fr, r, fi===9);
-          if(fi===9&&r===2){ const ok=(fr.r1===10)||((fr.r1||0)+(fr.r2||0)===10); if(!ok) dv.classList.add('disabled'); }
-          if(active.b===bi&&active.f===fi&&active.r===r) dv.classList.add('selected');
-          dv.addEventListener('click',()=>{ active={b:bi,f:fi,r:r}; save(); render(); dv.scrollIntoView({block:'nearest',inline:'center'}); });
-          fe.appendChild(dv);
-        }
-      });
+    const hdr = document.createElement('div');
+    hdr.className = 'board-header';
 
-      b.frames.forEach((fr,i)=> setText(`cum-${bi}-${i}`, fr.cumul));
-      setText(`grand-${bi}`, b.total); setText(`total-${bi}`, b.total);
-
-      hdr.addEventListener('click', e=>{
-        const btn=e.target.closest('button.tbtn'); if(!btn) return;
-        if(btn.dataset.a==='start'){ if(!b.timer.running){ b.timer.running=true; b.timer.lastStart=Date.now(); } }
-        if(btn.dataset.a==='pause'){ if(b.timer.running){ b.timer.elapsedMs=nowElapsed(b); b.timer.running=false; b.timer.lastStart=null; } }
-        if(btn.dataset.a==='stop'){ b.timer.running=false; b.timer.elapsedMs=0; b.timer.lastStart=null; }
-        save(); setText(`timer-${bi}`, fmtTime(nowElapsed(b)));
-      });
+    // --- Date picker ---
+    const date = document.createElement('div');
+    date.innerHTML = `<span class="label">Game Date:</span> <input type="date" value="${b.date}">`;
+    $('input', date).addEventListener('change', e => {
+      b.date = e.target.value || b.date;
+      save();
+      computeKPIs();
     });
+
+    // --- Timer ---
+    const timer = document.createElement('div');
+    timer.className = 'timer';
+    timer.innerHTML = `
+      <span id="timer-${bi}" class="display">${fmtTime(nowElapsed(b))}</span>
+      <button class="tbtn start" data-a="start">Start</button>
+      <button class="tbtn pause" data-a="pause">Pause</button>
+      <button class="tbtn stop" data-a="stop">Stop</button>
+    `;
+
+    // --- Totals ---
+    const totals = document.createElement('div');
+    totals.className = 'totals';
+    totals.innerHTML = `Total: <strong id="total-${bi}">${b.total}</strong>`;
+
+    // --- NEW: Delete game button ---
+    const delWrap = document.createElement('div');
+    delWrap.className = 'delete-wrap';
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'delete-game-btn';
+    delBtn.textContent = 'Delete Game';
+
+    delBtn.addEventListener('click', () => {
+      if (!confirm('Delete this game from history?')) return;
+
+      // Remove this board
+      boards.splice(bi, 1);
+
+      // If no games left, create a fresh one
+      if (!boards.length) {
+        boards.push(emptyBoard());
+        active = { b: 0, f: 0, r: 0 };
+      } else {
+        // Fix up active pointer
+        if (active.b === bi) {
+          // If we deleted the active game, move focus to previous (or 0)
+          const newIndex = Math.max(0, bi - 1);
+          active = { b: newIndex, f: 0, r: 0 };
+        } else if (active.b > bi) {
+          // Shift active index left if necessary
+          active = { ...active, b: active.b - 1 };
+        }
+      }
+
+      save();
+      render();
+    });
+
+    delWrap.appendChild(delBtn);
+
+    // Header now has date, timer, totals, and delete button
+    hdr.append(date, timer, totals, delWrap);
+
+    // --- Frames table ---
+    const table = document.createElement('table');
+    table.className = 'frames-table';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th></th>
+          ${Array.from({ length: 10 }, (_, i) => `<th>${i + 1}</th>`).join('')}
+          <th>Max Possible</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Rolls</td>
+          ${Array.from({ length: 10 }, (_, i) => `<td><div class="frame ${i === 9 ? 'tenth' : ''}" data-fi="${i}"></div></td>`).join('')}
+          <td rowspan="2" class="totals-col"><strong>300</strong></td>
+          <td rowspan="2" class="totals-col"><div id="grand-${bi}">${b.total}</div></td>
+        </tr>
+        <tr>
+          <td>0</td>
+          ${Array.from({ length: 10 }, (_, i) => `<td id="cum-${bi}-${i}">${b.frames[i].cumul}</td>`).join('')}
+        </tr>
+      </tbody>
+    `;
+
+    const section = document.createElement('section');
+    section.className = 'board';
+    section.append(hdr, table);
+    host.appendChild(section);
+
+    // minis
+    $$('.frame', table).forEach(fe => {
+      const fi = +fe.dataset.fi;
+      const fr = b.frames[fi];
+      fe.innerHTML = '';
+      const cnt = fi === 9 ? 3 : 2;
+      for (let r = 0; r < cnt; r++) {
+        const dv = document.createElement('div');
+        dv.className = 'mini';
+        dv.textContent = ux(fr, r, fi === 9);
+        if (fi === 9 && r === 2) {
+          const ok = (fr.r1 === 10) || ((fr.r1 || 0) + (fr.r2 || 0) === 10);
+          if (!ok) dv.classList.add('disabled');
+        }
+        if (active.b === bi && active.f === fi && active.r === r) {
+          dv.classList.add('selected');
+        }
+        dv.addEventListener('click', () => {
+          active = { b: bi, f: fi, r: r };
+          save();
+          render();
+          dv.scrollIntoView({ block: 'nearest', inline: 'center' });
+        });
+        fe.appendChild(dv);
+      }
+    });
+
+    b.frames.forEach((fr, i) => setText(`cum-${bi}-${i}`, fr.cumul));
+    setText(`grand-${bi}`, b.total);
+    setText(`total-${bi}`, b.total);
+
+    // Timer controls
+    hdr.addEventListener('click', e => {
+      const btn = e.target.closest('button.tbtn');
+      if (!btn) return;
+      if (btn.dataset.a === 'start') {
+        if (!b.timer.running) {
+          b.timer.running = true;
+          b.timer.lastStart = Date.now();
+        }
+      }
+      if (btn.dataset.a === 'pause') {
+        if (b.timer.running) {
+          b.timer.elapsedMs = nowElapsed(b);
+          b.timer.running = false;
+          b.timer.lastStart = null;
+        }
+      }
+      if (btn.dataset.a === 'stop') {
+        b.timer.running = false;
+        b.timer.elapsedMs = 0;
+        b.timer.lastStart = null;
+      }
+      save();
+      setText(`timer-${bi}`, fmtTime(nowElapsed(b)));
+    });
+  });
+     
     computeKPIs();
   }
   function ux(fr, idx, tenth){
