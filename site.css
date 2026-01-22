@@ -110,6 +110,124 @@ header h1{flex:1;font-size:1.8rem;margin:0 0 12px}
 .tb-table td input[type="number"]{width:88px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--cell)}
 .tb-actions{display:flex;gap:8px}
 
+/* ============================================================
+   6 Ball Ghost (scoped styles)
+   NOTE: relies on <body data-page="ghost6"> and #ghost6App
+   ============================================================ */
+
+/* Layout */
+body[data-page="ghost6"] #ghost6App{
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0; /* body already has padding:16px */
+}
+
+/* Card blocks */
+body[data-page="ghost6"] #ghost6App .card{
+  background: var(--cell);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+}
+body[data-page="ghost6"] #ghost6App .card h2{
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+}
+
+/* Rules list */
+body[data-page="ghost6"] #ghost6App .rules{
+  margin: 0;
+  padding-left: 18px;
+}
+body[data-page="ghost6"] #ghost6App .rules li{
+  margin: 6px 0;
+}
+
+/* Stat grids */
+body[data-page="ghost6"] #ghost6App .grid-2{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 12px;
+}
+body[data-page="ghost6"] #ghost6App .grid-3{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 12px;
+}
+
+/* Stat tiles */
+body[data-page="ghost6"] #ghost6App .stat{
+  background: var(--head);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+body[data-page="ghost6"] #ghost6App .stat .label{
+  color: #666;
+  font-size: .9rem;
+  margin-bottom: 4px;
+}
+body[data-page="ghost6"] #ghost6App .stat .value{
+  font-size: 1.8rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Button row + buttons (scoped so it won't affect other pages) */
+body[data-page="ghost6"] #ghost6App .btn-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+body[data-page="ghost6"] #ghost6App .btn{
+  border: 1px solid var(--border);
+  background: var(--cell);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+body[data-page="ghost6"] #ghost6App .btn.primary{
+  border-color: var(--green);
+  color: var(--green);
+}
+body[data-page="ghost6"] #ghost6App .btn.danger{
+  border-color: var(--red);
+  color: var(--red);
+}
+body[data-page="ghost6"] #ghost6App .btn.warning{
+  border-color: var(--orange);
+  color: var(--orange);
+}
+body[data-page="ghost6"] #ghost6App .btn:disabled{
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* Note */
+body[data-page="ghost6"] #ghost6App .note{
+  margin-top: 10px;
+  color: #666;
+  min-height: 1.1em;
+}
+
+/* Responsive tweak for 6 Ball Ghost */
+@media (max-width:880px){
+  body[data-page="ghost6"] #ghost6App .grid-3{
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+@media (max-width:520px){
+  body[data-page="ghost6"] #ghost6App .grid-2{
+    grid-template-columns: 1fr;
+  }
+  body[data-page="ghost6"] #ghost6App .grid-3{
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Responsive */
 @media (max-width:1024px){ .stats-cards{grid-template-columns:repeat(3,minmax(160px,1fr))} }
 @media (max-width:880px){
@@ -125,4 +243,7 @@ header h1{flex:1;font-size:1.8rem;margin:0 0 12px}
   body{background:#fff;color:#000}
   .frames-table,.frames-table *{background:#fff;color:#000;border-color:#000}
   .stats-cards .card{border-color:#000}
+
+  /* Hide 6 Ball Ghost buttons when printing */
+  body[data-page="ghost6"] #ghost6App .btn-row{display:none!important}
 }
