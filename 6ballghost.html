@@ -1,24 +1,20 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>6 Ball Ghost</title>
-
-  <!-- Use your existing shared CSS -->
+  <title>6-Ball Ghost</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="site.css" />
 </head>
-
-<body>
-  <!-- If you have a shared header/nav via _Layout or similar, you can remove this block -->
-  <header class="app-header">
-    <div class="wrap">
-      <h1 class="app-title">6 Ball Ghost</h1>
-      <p class="app-subtitle">Track racks, balls made, streaks, and win rate.</p>
-    </div>
+<body data-page="ghost6">
+  <header>
+    <a class="back-link" href="index.html">← Home</a>
+    <h1>6 Ball Ghost</h1>
+    <div class="subtitle">Track racks, balls made, streaks, and win rate.</div>
   </header>
 
-  <main class="wrap" id="ghost6App">
+  <main id="ghost6App">
+    <!-- How to play -->
     <section class="card">
       <h2>How to Play</h2>
       <ul class="rules">
@@ -29,6 +25,7 @@
       </ul>
     </section>
 
+    <!-- Rack tracker -->
     <section class="card">
       <h2>Rack Tracker</h2>
 
@@ -37,17 +34,17 @@
           <div class="label">Balls Remaining</div>
           <div class="value" id="g6_ballsRemaining">6</div>
         </div>
-
         <div class="stat">
           <div class="label">Balls Made (This Rack)</div>
           <div class="value" id="g6_ballsMade">0</div>
         </div>
+      </div>
 
+      <div class="grid-2" style="margin-top:12px">
         <div class="stat">
           <div class="label">Rack Status</div>
           <div class="value" id="g6_rackStatus">Ready</div>
         </div>
-
         <div class="stat">
           <div class="label">Current Streak</div>
           <div class="value" id="g6_streak">0</div>
@@ -55,15 +52,16 @@
       </div>
 
       <div class="btn-row">
-        <button class="btn primary" id="g6_startRack">Start / New Rack</button>
-        <button class="btn" id="g6_ballMade">Ball Made</button>
-        <button class="btn danger" id="g6_missFoul">Miss / Foul</button>
-        <button class="btn" id="g6_undo">Undo</button>
+        <button class="btn primary" id="g6_startRack" type="button">Start / New Rack</button>
+        <button class="btn" id="g6_ballMade" type="button" disabled>Ball Made</button>
+        <button class="btn danger" id="g6_missFoul" type="button" disabled>Miss / Foul</button>
+        <button class="btn warning" id="g6_undo" type="button" disabled>Undo</button>
       </div>
 
-      <div class="note" id="g6_note" aria-live="polite"></div>
+      <div class="note" id="g6_note"></div>
     </section>
 
+    <!-- Session stats -->
     <section class="card">
       <h2>Session Stats</h2>
 
@@ -72,27 +70,25 @@
           <div class="label">Attempts</div>
           <div class="value" id="g6_attempts">0</div>
         </div>
-
         <div class="stat">
           <div class="label">Wins</div>
           <div class="value" id="g6_wins">0</div>
         </div>
-
         <div class="stat">
           <div class="label">Win %</div>
           <div class="value" id="g6_winPct">0%</div>
         </div>
+      </div>
 
+      <div class="grid-3" style="margin-top:12px">
         <div class="stat">
           <div class="label">Avg Balls Made</div>
           <div class="value" id="g6_avgMade">0.00</div>
         </div>
-
         <div class="stat">
           <div class="label">Best Streak</div>
           <div class="value" id="g6_bestStreak">0</div>
         </div>
-
         <div class="stat">
           <div class="label">Last Rack</div>
           <div class="value" id="g6_lastRack">—</div>
@@ -100,12 +96,11 @@
       </div>
 
       <div class="btn-row">
-        <button class="btn warning" id="g6_resetSession">Reset Session</button>
+        <button class="btn danger" id="g6_resetSession" type="button">Reset Session</button>
       </div>
     </section>
   </main>
 
-  <!-- Use your existing shared JS -->
   <script src="site.js"></script>
 </body>
 </html>
