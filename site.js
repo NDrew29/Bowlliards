@@ -13,8 +13,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const page = document.body.dataset.page;
   if (page === 'bowlliards') initBowlliards();
   else if (page === 'ghost9') initGhost();
+  else if (page === 'ghost6') init6BallGhost();
   else if (page === 'rds') initRDS();
-   else if (page === 'threeball') initThreeBall?.();
+  else if (page === 'threeball') initThreeBall?.();
 });
 
 /* ========= Bowlliards ========= */
@@ -78,169 +79,170 @@ function initBowlliards(){
   const nowElapsed=b=> b.timer.running ? b.timer.elapsedMs + (Date.now()-(b.timer.lastStart||Date.now())) : b.timer.elapsedMs;
 
   function render(){
-  const host = $('#boards');
-  host.innerHTML = '';
+    const host = $('#boards');
+    host.innerHTML = '';
 
-  boards.forEach((b, bi) => {
-    compute(b);
+    boards.forEach((b, bi) => {
+      compute(b);
 
-    const hdr = document.createElement('div');
-    hdr.className = 'board-header';
+      const hdr = document.createElement('div');
+      hdr.className = 'board-header';
 
-    // --- Date picker ---
-    const date = document.createElement('div');
-    date.innerHTML = `<span class="label">Game Date:</span> <input type="date" value="${b.date}">`;
-    $('input', date).addEventListener('change', e => {
-      b.date = e.target.value || b.date;
-      save();
-      computeKPIs();
-    });
+      // --- Date picker ---
+      const date = document.createElement('div');
+      date.innerHTML = `<span class="label">Game Date:</span> <input type="date" value="${b.date}">`;
+      $('input', date).addEventListener('change', e => {
+        b.date = e.target.value || b.date;
+        save();
+        computeKPIs();
+      });
 
-    // --- Timer ---
-    const timer = document.createElement('div');
-    timer.className = 'timer';
-    timer.innerHTML = `
-      <span id="timer-${bi}" class="display">${fmtTime(nowElapsed(b))}</span>
-      <button class="tbtn start" data-a="start">Start</button>
-      <button class="tbtn pause" data-a="pause">Pause</button>
-      <button class="tbtn stop" data-a="stop">Stop</button>
-    `;
+      // --- Timer ---
+      const timer = document.createElement('div');
+      timer.className = 'timer';
+      timer.innerHTML = `
+        <span id="timer-${bi}" class="display">${fmtTime(nowElapsed(b))}</span>
+        <button class="tbtn start" data-a="start">Start</button>
+        <button class="tbtn pause" data-a="pause">Pause</button>
+        <button class="tbtn stop" data-a="stop">Stop</button>
+      `;
 
-    // --- Totals ---
-    const totals = document.createElement('div');
-    totals.className = 'totals';
-    totals.innerHTML = `Total: <strong id="total-${bi}">${b.total}</strong>`;
+      // --- Totals ---
+      const totals = document.createElement('div');
+      totals.className = 'totals';
+      totals.innerHTML = `Total: <strong id="total-${bi}">${b.total}</strong>`;
 
-    // --- NEW: Delete game button ---
-    const delWrap = document.createElement('div');
-    delWrap.className = 'delete-wrap';
+      // --- NEW: Delete game button ---
+      const delWrap = document.createElement('div');
+      delWrap.className = 'delete-wrap';
 
-    const delBtn = document.createElement('button');
-    delBtn.className = 'delete-game-btn';
-    delBtn.textContent = 'Delete Game';
+      const delBtn = document.createElement('button');
+      delBtn.className = 'delete-game-btn';
+      delBtn.textContent = 'Delete Game';
 
-    delBtn.addEventListener('click', () => {
-      if (!confirm('Delete this game from history?')) return;
+      delBtn.addEventListener('click', () => {
+        if (!confirm('Delete this game from history?')) return;
 
-      // Remove this board
-      boards.splice(bi, 1);
+        // Remove this board
+        boards.splice(bi, 1);
 
-      // If no games left, create a fresh one
-      if (!boards.length) {
-        boards.push(emptyBoard());
-        active = { b: 0, f: 0, r: 0 };
-      } else {
-        // Fix up active pointer
-        if (active.b === bi) {
-          // If we deleted the active game, move focus to previous (or 0)
-          const newIndex = Math.max(0, bi - 1);
-          active = { b: newIndex, f: 0, r: 0 };
-        } else if (active.b > bi) {
-          // Shift active index left if necessary
-          active = { ...active, b: active.b - 1 };
+        // If no games left, create a fresh one
+        if (!boards.length) {
+          boards.push(emptyBoard());
+          active = { b: 0, f: 0, r: 0 };
+        } else {
+          // Fix up active pointer
+          if (active.b === bi) {
+            // If we deleted the active game, move focus to previous (or 0)
+            const newIndex = Math.max(0, bi - 1);
+            active = { b: newIndex, f: 0, r: 0 };
+          } else if (active.b > bi) {
+            // Shift active index left if necessary
+            active = { ...active, b: active.b - 1 };
+          }
         }
-      }
 
-      save();
-      render();
-    });
+        save();
+        render();
+      });
 
-    delWrap.appendChild(delBtn);
+      delWrap.appendChild(delBtn);
 
-    // Header now has date, timer, totals, and delete button
-    hdr.append(date, timer, totals, delWrap);
+      // Header now has date, timer, totals, and delete button
+      hdr.append(date, timer, totals, delWrap);
 
-    // --- Frames table ---
-    const table = document.createElement('table');
-    table.className = 'frames-table';
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th></th>
-          ${Array.from({ length: 10 }, (_, i) => `<th>${i + 1}</th>`).join('')}
-          <th>Max Possible</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Rolls</td>
-          ${Array.from({ length: 10 }, (_, i) => `<td><div class="frame ${i === 9 ? 'tenth' : ''}" data-fi="${i}"></div></td>`).join('')}
-          <td rowspan="2" class="totals-col"><strong>300</strong></td>
-          <td rowspan="2" class="totals-col"><div id="grand-${bi}">${b.total}</div></td>
-        </tr>
-        <tr>
-          <td>0</td>
-          ${Array.from({ length: 10 }, (_, i) => `<td id="cum-${bi}-${i}">${b.frames[i].cumul}</td>`).join('')}
-        </tr>
-      </tbody>
-    `;
+      // --- Frames table ---
+      const table = document.createElement('table');
+      table.className = 'frames-table';
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th></th>
+            ${Array.from({ length: 10 }, (_, i) => `<th>${i + 1}</th>`).join('')}
+            <th>Max Possible</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Rolls</td>
+            ${Array.from({ length: 10 }, (_, i) => `<td><div class="frame ${i === 9 ? 'tenth' : ''}" data-fi="${i}"></div></td>`).join('')}
+            <td rowspan="2" class="totals-col"><strong>300</strong></td>
+            <td rowspan="2" class="totals-col"><div id="grand-${bi}">${b.total}</div></td>
+          </tr>
+          <tr>
+            <td>0</td>
+            ${Array.from({ length: 10 }, (_, i) => `<td id="cum-${bi}-${i}">${b.frames[i].cumul}</td>`).join('')}
+          </tr>
+        </tbody>
+      `;
 
-    const section = document.createElement('section');
-    section.className = 'board';
-    section.append(hdr, table);
-    host.appendChild(section);
+      const section = document.createElement('section');
+      section.className = 'board';
+      section.append(hdr, table);
+      host.appendChild(section);
 
-    // minis
-    $$('.frame', table).forEach(fe => {
-      const fi = +fe.dataset.fi;
-      const fr = b.frames[fi];
-      fe.innerHTML = '';
-      const cnt = fi === 9 ? 3 : 2;
-      for (let r = 0; r < cnt; r++) {
-        const dv = document.createElement('div');
-        dv.className = 'mini';
-        dv.textContent = ux(fr, r, fi === 9);
-        if (fi === 9 && r === 2) {
-          const ok = (fr.r1 === 10) || ((fr.r1 || 0) + (fr.r2 || 0) === 10);
-          if (!ok) dv.classList.add('disabled');
+      // minis
+      $$('.frame', table).forEach(fe => {
+        const fi = +fe.dataset.fi;
+        const fr = b.frames[fi];
+        fe.innerHTML = '';
+        const cnt = fi === 9 ? 3 : 2;
+        for (let r = 0; r < cnt; r++) {
+          const dv = document.createElement('div');
+          dv.className = 'mini';
+          dv.textContent = ux(fr, r, fi === 9);
+          if (fi === 9 && r === 2) {
+            const ok = (fr.r1 === 10) || ((fr.r1 || 0) + (fr.r2 || 0) === 10);
+            if (!ok) dv.classList.add('disabled');
+          }
+          if (active.b === bi && active.f === fi && active.r === r) {
+            dv.classList.add('selected');
+          }
+          dv.addEventListener('click', () => {
+            active = { b: bi, f: fi, r: r };
+            save();
+            render();
+            dv.scrollIntoView({ block: 'nearest', inline: 'center' });
+          });
+          fe.appendChild(dv);
         }
-        if (active.b === bi && active.f === fi && active.r === r) {
-          dv.classList.add('selected');
-        }
-        dv.addEventListener('click', () => {
-          active = { b: bi, f: fi, r: r };
-          save();
-          render();
-          dv.scrollIntoView({ block: 'nearest', inline: 'center' });
-        });
-        fe.appendChild(dv);
-      }
-    });
+      });
 
-    b.frames.forEach((fr, i) => setText(`cum-${bi}-${i}`, fr.cumul));
-    setText(`grand-${bi}`, b.total);
-    setText(`total-${bi}`, b.total);
+      b.frames.forEach((fr, i) => setText(`cum-${bi}-${i}`, fr.cumul));
+      setText(`grand-${bi}`, b.total);
+      setText(`total-${bi}`, b.total);
 
-    // Timer controls
-    hdr.addEventListener('click', e => {
-      const btn = e.target.closest('button.tbtn');
-      if (!btn) return;
-      if (btn.dataset.a === 'start') {
-        if (!b.timer.running) {
-          b.timer.running = true;
-          b.timer.lastStart = Date.now();
+      // Timer controls
+      hdr.addEventListener('click', e => {
+        const btn = e.target.closest('button.tbtn');
+        if (!btn) return;
+        if (btn.dataset.a === 'start') {
+          if (!b.timer.running) {
+            b.timer.running = true;
+            b.timer.lastStart = Date.now();
+          }
         }
-      }
-      if (btn.dataset.a === 'pause') {
-        if (b.timer.running) {
-          b.timer.elapsedMs = nowElapsed(b);
+        if (btn.dataset.a === 'pause') {
+          if (b.timer.running) {
+            b.timer.elapsedMs = nowElapsed(b);
+            b.timer.running = false;
+            b.timer.lastStart = null;
+          }
+        }
+        if (btn.dataset.a === 'stop') {
           b.timer.running = false;
+          b.timer.elapsedMs = 0;
           b.timer.lastStart = null;
         }
-      }
-      if (btn.dataset.a === 'stop') {
-        b.timer.running = false;
-        b.timer.elapsedMs = 0;
-        b.timer.lastStart = null;
-      }
-      save();
-      setText(`timer-${bi}`, fmtTime(nowElapsed(b)));
+        save();
+        setText(`timer-${bi}`, fmtTime(nowElapsed(b)));
+      });
     });
-  });
-     
+
     computeKPIs();
   }
+
   function ux(fr, idx, tenth){
     const v = idx===0?fr.r1:idx===1?fr.r2:fr.r3;
     if(v==null) return '';
@@ -379,27 +381,27 @@ function initGhost(){
     });
   }
   function recalc(i){
-  const r = session.racks[i];
+    const r = session.racks[i];
 
-  // normalize inputs
-  r.balls       = clamp(r.balls, 0, 9);   // "Balls Made" typed by you
-  r.breakBalls  = clamp(r.breakBalls, 0, 9); // tracked separately
-  r.scratch     = !!r.scratch; 
-  r.nineOnBreak = !!r.nineOnBreak;
-  r.nineMade    = !!r.nineMade;
+    // normalize inputs
+    r.balls       = clamp(r.balls, 0, 9);   // "Balls Made" typed by you
+    r.breakBalls  = clamp(r.breakBalls, 0, 9); // tracked separately
+    r.scratch     = !!r.scratch;
+    r.nineOnBreak = !!r.nineOnBreak;
+    r.nineMade    = !!r.nineMade;
 
-  // 9-ball counts for +1 only if legal
-  const nineLegal = (r.nineOnBreak && !r.scratch) || r.nineMade;
+    // 9-ball counts for +1 only if legal
+    const nineLegal = (r.nineOnBreak && !r.scratch) || r.nineMade;
 
-  // Score = balls made (typed) + bonus if legal 9
-  r.score = r.balls + (nineLegal ? 1 : 0);
+    // Score = balls made (typed) + bonus if legal 9
+    r.score = r.balls + (nineLegal ? 1 : 0);
 
-  // push to UI
-  document.getElementById('gScore-'+i).textContent = String(r.score);
+    // push to UI
+    document.getElementById('gScore-'+i).textContent = String(r.score);
 
-  compute(); // recompute totals & rating
+    compute(); // recompute totals & rating
   }
-   
+
   function wireRows(){
     elBody.addEventListener('input', e=>{
       const i=+e.target.dataset.i;
@@ -633,6 +635,230 @@ function initRDS(){
   loadTemp(); paintAll(); renderHistory();
 }
 
+/* ========= 6 Ball Ghost ========= */
+function init6BallGhost(){
+  const root = document.getElementById('ghost6App');
+  if(!root) return; // only run on 6ballghost.html
+
+  const LS_KEY = 'ghost6.session.v1';
+
+  // UI refs
+  const ui = {
+    ballsRemaining: document.getElementById('g6_ballsRemaining'),
+    ballsMade: document.getElementById('g6_ballsMade'),
+    rackStatus: document.getElementById('g6_rackStatus'),
+    streak: document.getElementById('g6_streak'),
+
+    attempts: document.getElementById('g6_attempts'),
+    wins: document.getElementById('g6_wins'),
+    winPct: document.getElementById('g6_winPct'),
+    avgMade: document.getElementById('g6_avgMade'),
+    bestStreak: document.getElementById('g6_bestStreak'),
+    lastRack: document.getElementById('g6_lastRack'),
+    note: document.getElementById('g6_note'),
+
+    btnStart: document.getElementById('g6_startRack'),
+    btnBallMade: document.getElementById('g6_ballMade'),
+    btnMissFoul: document.getElementById('g6_missFoul'),
+    btnUndo: document.getElementById('g6_undo'),
+    btnReset: document.getElementById('g6_resetSession')
+  };
+
+  // State
+  const defaultState = () => ({
+    // current rack
+    inRack: false,
+    rackEnded: false,
+    ballsRemaining: 6,
+    ballsMade: 0,
+    rackStatus: 'Ready', // Ready | In Progress | Won | Lost
+
+    // session totals
+    attempts: 0,
+    wins: 0,
+    totalBallsMade: 0,   // sum of balls made across completed racks
+    completedRacks: 0,
+
+    // streaks
+    streak: 0,
+    bestStreak: 0,
+
+    // last rack summary
+    lastRack: null, // { result:'Win'|'Loss', ballsMade:number }
+
+    // undo stack (snapshots)
+    history: []
+  });
+
+  let state = loadState();
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return defaultState();
+      const parsed = JSON.parse(raw);
+      // merge to protect against missing keys
+      return Object.assign(defaultState(), parsed);
+    }catch(e){
+      return defaultState();
+    }
+  }
+
+  function saveState(){
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  }
+
+  function pushHistory(){
+    // store a shallow snapshot (state only contains primitives + small objects)
+    const snap = JSON.parse(JSON.stringify(state));
+    // prevent unbounded growth
+    snap.history = []; // don't nest history inside history
+    state.history.push(snap);
+    if(state.history.length > 50) state.history.shift();
+  }
+
+  function setNote(msg){
+    if(!ui.note) return;
+    ui.note.textContent = msg || '';
+  }
+
+  function formatPct(num){
+    if(!isFinite(num)) return '0%';
+    return `${Math.round(num * 100)}%`;
+  }
+
+  function computeWinPct(){
+    if(state.attempts <= 0) return 0;
+    return state.wins / state.attempts;
+  }
+
+  function computeAvgMade(){
+    if(state.completedRacks <= 0) return 0;
+    return state.totalBallsMade / state.completedRacks;
+  }
+
+  function updateUI(){
+    ui.ballsRemaining.textContent = String(state.ballsRemaining);
+    ui.ballsMade.textContent = String(state.ballsMade);
+    ui.rackStatus.textContent = state.rackStatus;
+    ui.streak.textContent = String(state.streak);
+
+    ui.attempts.textContent = String(state.attempts);
+    ui.wins.textContent = String(state.wins);
+    ui.winPct.textContent = formatPct(computeWinPct());
+    ui.avgMade.textContent = computeAvgMade().toFixed(2);
+    ui.bestStreak.textContent = String(state.bestStreak);
+    ui.lastRack.textContent = state.lastRack
+      ? `${state.lastRack.result} (${state.lastRack.ballsMade}/6)`
+      : '—';
+
+    // button enablement
+    const canAct = state.inRack && !state.rackEnded;
+    ui.btnBallMade.disabled = !canAct;
+    ui.btnMissFoul.disabled = !canAct;
+    ui.btnUndo.disabled = (state.history.length === 0);
+  }
+
+  function startRack(){
+    pushHistory();
+
+    state.inRack = true;
+    state.rackEnded = false;
+    state.ballsRemaining = 6;
+    state.ballsMade = 0;
+    state.rackStatus = 'In Progress';
+
+    setNote('Rack started. Good luck.');
+    saveState();
+    updateUI();
+  }
+
+  function ballMade(){
+    if(!state.inRack || state.rackEnded) return;
+
+    pushHistory();
+
+    if(state.ballsRemaining <= 0){
+      setNote('This rack is already complete.');
+      saveState(); updateUI();
+      return;
+    }
+
+    state.ballsMade += 1;
+    state.ballsRemaining = Math.max(0, 6 - state.ballsMade);
+
+    if(state.ballsMade >= 6){
+      // Win rack
+      endRack(true);
+      return;
+    }
+
+    setNote(`Ball made. ${state.ballsRemaining} remaining.`);
+    saveState();
+    updateUI();
+  }
+
+  function missFoul(){
+    if(!state.inRack || state.rackEnded) return;
+    pushHistory();
+    endRack(false);
+  }
+
+  function endRack(isWin){
+    state.rackEnded = true;
+    state.inRack = false;
+
+    state.attempts += 1;
+    state.completedRacks += 1;
+    state.totalBallsMade += state.ballsMade;
+
+    if(isWin){
+      state.wins += 1;
+      state.streak += 1;
+      state.bestStreak = Math.max(state.bestStreak, state.streak);
+      state.rackStatus = 'Won';
+      state.lastRack = { result:'Win', ballsMade: state.ballsMade };
+      setNote('WIN. Clean run of all 6.');
+    }else{
+      state.streak = 0;
+      state.rackStatus = 'Lost';
+      state.lastRack = { result:'Loss', ballsMade: state.ballsMade };
+      setNote(`Loss. You made ${state.ballsMade}/6.`);
+    }
+
+    saveState();
+    updateUI();
+  }
+
+  function undo(){
+    if(state.history.length === 0) return;
+    const prev = state.history.pop();
+    state = Object.assign(defaultState(), prev);
+    setNote('Undid last action.');
+    saveState();
+    updateUI();
+  }
+
+  function resetSession(){
+    pushHistory();
+    state = defaultState();
+    setNote('Session reset.');
+    saveState();
+    updateUI();
+  }
+
+  // Wire up buttons
+  ui.btnStart.addEventListener('click', startRack);
+  ui.btnBallMade.addEventListener('click', ballMade);
+  ui.btnMissFoul.addEventListener('click', missFoul);
+  ui.btnUndo.addEventListener('click', undo);
+  ui.btnReset.addEventListener('click', resetSession);
+
+  // Initial render
+  updateUI();
+  setNote('Ready. Click “Start / New Rack” to begin.');
+}
+
 /* ============================================================
    3-Ball Run-Out Drill (fixed Run-out? column)
    ============================================================ */
@@ -708,9 +934,9 @@ function initThreeBall(){
     if (kAvg)      kAvg.textContent      = avg.toFixed(2);
     if (kStreak)   kStreak.textContent   = String(best);
     if (elFootPct) elFootPct.textContent = `${Math.round(runPct)}%`;
-     
-   const kTotal = $('#tbKpiTotal');
-     kTotal && (kTotal.textContent = String(total))
+
+    const kTotal = $('#tbKpiTotal');
+    kTotal && (kTotal.textContent = String(total));
   }
 
   function rowHTML(i){
@@ -774,61 +1000,61 @@ function initThreeBall(){
   function loadHistory(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch{ return []; } }
 
   function renderHistory(){
-  if(!elHist) return;
-  elHist.innerHTML = '';
+    if(!elHist) return;
+    elHist.innerHTML = '';
 
-  if(!history.length){
-    elHist.innerHTML = '<p class="subtitle">No saved sessions yet.</p>';
-    return;
-  }
+    if(!history.length){
+      elHist.innerHTML = '<p class="subtitle">No saved sessions yet.</p>';
+      return;
+    }
 
-  history.forEach((s,idx)=>{
-    const lvl = Number(s.level);
-    const totalBalls = s.attempts.reduce((acc,a)=> acc + Number(a?.cleared||0), 0);
-    const runs = s.attempts.filter(a => Number(a?.cleared||0) === lvl).length;
-    const pct  = s.attemptsCount ? Math.round(100 * runs / s.attemptsCount) : 0;
-    const avg  = s.attemptsCount ? (totalBalls / s.attemptsCount).toFixed(2) : '0.00';
+    history.forEach((s,idx)=>{
+      const lvl = Number(s.level);
+      const totalBalls = s.attempts.reduce((acc,a)=> acc + Number(a?.cleared||0), 0);
+      const runs = s.attempts.filter(a => Number(a?.cleared||0) === lvl).length;
+      const pct  = s.attemptsCount ? Math.round(100 * runs / s.attemptsCount) : 0;
+      const avg  = s.attemptsCount ? (totalBalls / s.attemptsCount).toFixed(2) : '0.00';
 
-    let cur=0,best=0;
-    s.attempts.forEach(a=>{
-      if (Number(a?.cleared||0) === lvl){ cur++; best=Math.max(best,cur); }
-      else cur=0;
+      let cur=0,best=0;
+      s.attempts.forEach(a=>{
+        if (Number(a?.cleared||0) === lvl){ cur++; best=Math.max(best,cur); }
+        else cur=0;
+      });
+
+      const div = document.createElement('div');
+      div.className = 'ghost-card';
+      div.innerHTML = `
+        <h3>${s.date} — Level ${lvl} • ${s.attemptsCount} attempts</h3>
+        <div><strong>Total Balls:</strong> ${totalBalls}</div>
+        <div><strong>Run-outs:</strong> ${runs} (${pct}%)</div>
+        <div><strong>Avg Balls:</strong> ${avg}</div>
+        <div><strong>Longest Streak:</strong> ${best}</div>
+        <div style="margin-top:6px;display:flex;gap:8px">
+          <button data-act="load" data-i="${idx}" class="tbtn">Load</button>
+          <button data-act="delete" data-i="${idx}" class="tbtn stop">Delete</button>
+        </div>
+      `;
+      elHist.appendChild(div);
     });
 
-    const div = document.createElement('div');
-    div.className = 'ghost-card';
-    div.innerHTML = `
-      <h3>${s.date} — Level ${lvl} • ${s.attemptsCount} attempts</h3>
-      <div><strong>Total Balls:</strong> ${totalBalls}</div>
-      <div><strong>Run-outs:</strong> ${runs} (${pct}%)</div>
-      <div><strong>Avg Balls:</strong> ${avg}</div>
-      <div><strong>Longest Streak:</strong> ${best}</div>
-      <div style="margin-top:6px;display:flex;gap:8px">
-        <button data-act="load" data-i="${idx}" class="tbtn">Load</button>
-        <button data-act="delete" data-i="${idx}" class="tbtn stop">Delete</button>
-      </div>
-    `;
-    elHist.appendChild(div);
-  });
-
-  // (re)bind once per render
-  elHist.addEventListener('click', e=>{
-    const btn = e.target.closest('button[data-act]');
-    if(!btn) return;
-    const i = +btn.dataset.i;
-    if(btn.dataset.act==='load'){
-      session = structuredClone(history[i]);
-      paintAll();
-    }
-    if(btn.dataset.act==='delete'){
-      if(confirm('Delete this session?')){
-        history.splice(i,1);
-        saveHistory();
-        renderHistory();
+    // (re)bind once per render
+    elHist.addEventListener('click', e=>{
+      const btn = e.target.closest('button[data-act]');
+      if(!btn) return;
+      const i = +btn.dataset.i;
+      if(btn.dataset.act==='load'){
+        session = structuredClone(history[i]);
+        paintAll();
       }
-    }
-  }, { once: true });
-}
+      if(btn.dataset.act==='delete'){
+        if(confirm('Delete this session?')){
+          history.splice(i,1);
+          saveHistory();
+          renderHistory();
+        }
+      }
+    }, { once: true });
+  }
 
   function paintAll(){
     if (elDate)    elDate.value = session.date;
